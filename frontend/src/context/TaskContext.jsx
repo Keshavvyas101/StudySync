@@ -1,61 +1,61 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import {
-  createTaskApi,
-  getTasksByRoomApi,
-  deleteTaskApi,
-} from "../services/taskService";
+import { createContext, useContext, useState } from "react";
+import api from "../services/api";
 
-const TaskContext = createContext(null);
+const TaskContext = createContext();
 
-export const TaskProvider = ({ children, roomId }) => {
+export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔴 KEY FIX: reset + refetch when roomId changes
-  useEffect(() => {
+  const fetchTasks = async (roomId) => {
     if (!roomId) return;
-
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        setTasks([]); // 🔥 clear previous room tasks
-        const data = await getTasksByRoomApi(roomId);
-        setTasks(data);
-      } catch (err) {
-        console.error("Failed to load tasks", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, [roomId]); // 🔥 DEPENDENCY ADDED
-
-  const addTask = async (taskData) => {
-    if (!roomId || !taskData.title) return false;
-
     try {
-      const newTask = await createTaskApi(roomId, taskData);
-      setTasks((prev) => [newTask, ...prev]);
-      return true;
-    } catch (err) {
-      console.error("Failed to create task", err);
-      return false;
+      setLoading(true);
+      const res = await api.get(`/tasks/${roomId}`);
+      setTasks(res.data.tasks);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const createTask = async ({
+    roomId,
+    title,
+    description,
+    deadline,
+    assignedTo,
+  }) => {
+    const res = await api.post(`/tasks/${roomId}`, {
+      title,
+      description,
+      deadline,
+      assignedTo,
+    });
+    setTasks((prev) => [res.data.task, ...prev]);
+  };
+
+  const updateTask = async (taskId, updates) => {
+    const res = await api.patch(`/tasks/${taskId}`, updates);
+    setTasks((prev) =>
+      prev.map((t) => (t._id === taskId ? res.data.task : t))
+    );
+  };
+
   const deleteTask = async (taskId) => {
-    try {
-      await deleteTaskApi(taskId);
-      setTasks((prev) => prev.filter((t) => t._id !== taskId));
-    } catch (err) {
-      console.error("Failed to delete task", err);
-    }
+    await api.delete(`/tasks/${taskId}`);
+    setTasks((prev) => prev.filter((t) => t._id !== taskId));
   };
 
   return (
     <TaskContext.Provider
-      value={{ tasks, loading, addTask, deleteTask }}
+      value={{
+        tasks,
+        loading,
+        fetchTasks,
+        createTask,
+        updateTask,
+        deleteTask,
+      }}
     >
       {children}
     </TaskContext.Provider>
@@ -65,7 +65,7 @@ export const TaskProvider = ({ children, roomId }) => {
 export const useTasks = () => {
   const ctx = useContext(TaskContext);
   if (!ctx) {
-    throw new Error("useTasks must be used inside TaskProvider");
+    throw new Error("useTasks must be used within TaskProvider");
   }
   return ctx;
 };

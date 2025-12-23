@@ -11,9 +11,9 @@ const Register = () => {
     password: "",
   });
 
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,7 +23,6 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setLoading(true);
     setError("");
     setSuccess("");
@@ -31,10 +30,9 @@ const Register = () => {
     try {
       const res = await api.post("/auth/register", formData);
 
-      // backend response message
       setSuccess(res.data.message || "Registration successful");
 
-      // optional delay so user sees message
+      // Redirect to login after short delay
       setTimeout(() => {
         navigate("/login");
       }, 1500);
@@ -49,67 +47,111 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center 
+                    bg-gradient-to-br from-[#0f0f14] via-[#15151c] to-[#1a1a2e] px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-[#15151c] p-6 rounded-lg border border-white/10"
+        className="w-full max-w-md bg-[#15151c] border border-white/10 
+                   rounded-2xl p-8 shadow-2xl"
       >
-        <h2 className="text-xl font-semibold mb-6 text-center">
-          Register
-        </h2>
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white">StudySync</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Create your account
+          </p>
+        </div>
 
-        {/* ERROR MESSAGE */}
+        {/* Error */}
         {error && (
           <p className="text-red-400 text-sm mb-4 text-center">
             {error}
           </p>
         )}
 
-        {/* SUCCESS MESSAGE */}
+        {/* Success */}
         {success && (
           <p className="text-green-400 text-sm mb-4 text-center">
             {success}
           </p>
         )}
 
-        <input
-          name="name"
-          placeholder="Name"
-          required
-          onChange={handleChange}
-          className="w-full mb-4 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
-        />
+        {/* Name */}
+        <div className="mb-4">
+          <label className="block text-sm text-gray-400 mb-1">
+            Name
+          </label>
+          <input
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Your name"
+            required
+            className="w-full px-3 py-2 rounded-lg bg-[#0f0f14]
+                       border border-white/10 text-white
+                       placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-purple-600"
+          />
+        </div>
 
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-          onChange={handleChange}
-          className="w-full mb-4 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
-        />
+        {/* Email */}
+        <div className="mb-4">
+          <label className="block text-sm text-gray-400 mb-1">
+            Email
+          </label>
+          <input
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            required
+            className="w-full px-3 py-2 rounded-lg bg-[#0f0f14]
+                       border border-white/10 text-white
+                       placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-purple-600"
+          />
+        </div>
 
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          required
-          minLength={6}
-          onChange={handleChange}
-          className="w-full mb-6 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
-        />
+        {/* Password */}
+        <div className="mb-6">
+          <label className="block text-sm text-gray-400 mb-1">
+            Password
+          </label>
+          <input
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="••••••••"
+            minLength={6}
+            required
+            className="w-full px-3 py-2 rounded-lg bg-[#0f0f14]
+                       border border-white/10 text-white
+                       placeholder-gray-500
+                       focus:outline-none focus:ring-2 focus:ring-purple-600"
+          />
+        </div>
 
+        {/* Button */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-purple-600
+                     text-white font-medium
+                     hover:bg-purple-700 transition
+                     disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? "Registering..." : "Register"}
+          {loading ? "Creating account..." : "Register"}
         </button>
 
-        <p className="text-sm text-gray-400 mt-4 text-center">
+        {/* Footer */}
+        <p className="text-sm text-gray-400 mt-6 text-center">
           Already have an account?{" "}
-          <Link to="/login" className="text-purple-400">
+          <Link
+            to="/login"
+            className="text-purple-400 hover:text-purple-300 hover:underline"
+          >
             Login
           </Link>
         </p>

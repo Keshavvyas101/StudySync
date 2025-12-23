@@ -15,7 +15,7 @@
 /* ---------- TOPBAR ---------- */
 .app-root .topbar {
   height: 60px;
-  background: rgb(34,69,109);
+  background: #1b5e95;
   color: white;
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@
 
 /* ---------- CENTER WORKSPACE ---------- */
 .app-root .workspace {
-  background: rgb(48, 58, 70); /* DARK CENTER */
+  background: rgb(48, 58, 68); /* DARK CENTER */
   color: white;
   padding: 16px;
   overflow-y: auto;
@@ -94,7 +94,7 @@
 
 /* ---------- RIGHT PANEL (FOCUS) ---------- */
 .app-root .focus-panel {
-  background: rgb(34,69,109);
+  background: #1b5e95;
   padding: 16px;
   border-left: 1px solid #e5e7eb;
   overflow-y: auto;
