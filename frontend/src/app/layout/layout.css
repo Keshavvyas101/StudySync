@@ -1,0 +1,130 @@
+/* ================================
+   Scoped Layout Styles ONLY
+   Applies ONLY inside .app-root
+   ================================ */
+
+/* Root layout wrapper */
+.app-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ---------- TOPBAR ---------- */
+.app-root .topbar {
+  height: 60px;
+  background: rgb(34,69,109);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+   border-bottom: 3px solid rgb(13, 204, 214);
+}
+
+.app-root .logo {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.app-root .logout-btn {
+  background: #ef4444;
+  border: none;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ---------- MAIN BODY GRID ---------- */
+.app-root .app-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+/* ---------- LEFT PANEL (ROOMS) ---------- */
+.app-root .room-panel {
+  background: #ffffff;
+  padding: 16px;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.app-root .panel-title {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Room list */
+.app-root .room-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+
+.app-root .room-item {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.app-root .room-item:hover {
+  background: #e5e7eb;
+}
+
+.app-root .room-item.active {
+  background: #dbeafe;
+  font-weight: 600;
+}
+
+/* ---------- CENTER WORKSPACE ---------- */
+.app-root .workspace {
+  background: rgb(48, 58, 70); /* DARK CENTER */
+  color: white;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ---------- RIGHT PANEL (FOCUS) ---------- */
+.app-root .focus-panel {
+  background: rgb(34,69,109);
+  padding: 16px;
+  border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.app-root .focus-timer {
+  font-size: 36px;
+  font-weight: bold;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.app-root .focus-quote {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* ---------- BUTTON ---------- */
+.app-root .primary-btn {
+  width: 100%;
+  padding: 10px;
+  background: #2563eb;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.app-root .primary-btn:hover {
+  background: #1d4ed8;
+}
