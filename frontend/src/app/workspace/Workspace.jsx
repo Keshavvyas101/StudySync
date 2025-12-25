@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { useRooms } from "../../context/RoomContext";
 import { useTasks } from "../../context/TaskContext";
-import TaskCard from "./TaskCard"; // ✅ IMPORTANT
+import TaskCard from "./TaskCard";
 
 const Workspace = () => {
-  const { activeRoom } = useRooms();
+  const { activeRoom, members } = useRooms();
   const { tasks, loading, fetchTasks, createTask } = useTasks();
+
   const [filter, setFilter] = useState("all");
-
-
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
     deadline: "",
+    assignedTo: "",
+    priority: "medium"
   });
 
   useEffect(() => {
@@ -33,83 +34,99 @@ const Workspace = () => {
   const handleAddTask = () => {
     if (form.title.trim().length < 3) return;
 
-    createTask({
-      roomId: activeRoom._id,
+    createTask(activeRoom._id, {
       title: form.title,
       description: form.description,
       deadline: form.deadline || null,
+      assignedTo: form.assignedTo || null,
+      priority: form.priority || "medium"
     });
 
-    setForm({ title: "", description: "", deadline: "" });
-    setShowAddForm(false);
+    setForm({
+      title: "",
+      description: "",
+      deadline: "",
+      assignedTo: "",
+      priority: "medium"
+    });
+    setShowForm(false);
   };
 
-  const filteredTasks = tasks.filter((task) => {
-  if (filter === "completed") return task.status === "completed";
-  if (filter === "active") return task.status !== "completed";
-  return true; // all
-});
-
+  const filteredTasks = tasks.filter((t) => {
+    if (filter === "completed") return t.status === "completed";
+    if (filter === "active") return t.status !== "completed";
+    return true;
+  });
 
   return (
     <div className="workspace w-full h-full px-6">
-      <h2 className="text-xl font-semibold mb-6">
-        {activeRoom.name}
-      </h2>
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold">
+          {activeRoom.name}
+        </h2>
 
-      {/* FILTER BAR */}
-<div className="flex gap-2 mb-6">
-  <FilterButton
-    label="All"
-    active={filter === "all"}
-    onClick={() => setFilter("all")}
-  />
-  <FilterButton
-    label="Active"
-    active={filter === "active"}
-    onClick={() => setFilter("active")}
-  />
-  <FilterButton
-    label="Completed"
-    active={filter === "completed"}
-    onClick={() => setFilter("completed")}
-  />
-</div>
+        {/* FILTER BAR */}
+        <div className="flex gap-2">
+          {["all", "active", "completed"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-1.5 rounded text-sm transition ${
+                filter === f
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-200 dark:bg-[#1a1f2b] text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-[#232838]"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
 
-
-      {loading && <p className="text-gray-400">Loading tasks…</p>}
-
-      {!loading && tasks.length === 0 && (
-        <p className="text-gray-400 mb-6">No tasks yet</p>
+      {loading && (
+        <p className="text-gray-400">
+          Loading tasks…
+        </p>
       )}
 
-      {/* ✅ TASK LIST */}
-      <div className="space-y-4">
-      {filteredTasks.map((task) => (
-  <TaskCard key={task._id} task={task} />
-))}
+      {!loading && filteredTasks.length === 0 && (
+        <p className="text-gray-400">
+          No tasks yet
+        </p>
+      )}
 
+      {/* TASK LIST */}
+      <div className="space-y-4">
+        {filteredTasks.map((task) => (
+          <TaskCard
+            key={task._id}
+            task={task}
+            members={members}
+          />
+        ))}
       </div>
 
       {/* ADD TASK */}
-      {!showAddForm && (
+      {!showForm ? (
         <button
-          onClick={() => setShowAddForm(true)}
-          className="mt-8 w-full py-3 rounded bg-blue-600 hover:bg-blue-700"
+          onClick={() => setShowForm(true)}
+          className="mt-8 w-full py-3 rounded bg-blue-600 hover:bg-blue-700 text-white"
         >
           + Add New Task
         </button>
-      )}
+      ) : (
+        <div className="mt-6 p-4 rounded border border-slate-300 dark:border-white/10
+                        bg-white dark:bg-[#15151c] space-y-3">
 
-      {showAddForm && (
-        <div className="mt-6 bg-[#15151c] p-4 rounded border border-white/10">
           <input
             placeholder="Task title"
             value={form.title}
             onChange={(e) =>
               setForm({ ...form, title: e.target.value })
             }
-            className="w-full mb-3 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
+            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
+                       border border-slate-300 dark:border-white/10"
           />
 
           <textarea
@@ -118,7 +135,8 @@ const Workspace = () => {
             onChange={(e) =>
               setForm({ ...form, description: e.target.value })
             }
-            className="w-full mb-3 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
+            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
+                       border border-slate-300 dark:border-white/10"
           />
 
           <input
@@ -127,44 +145,56 @@ const Workspace = () => {
             onChange={(e) =>
               setForm({ ...form, deadline: e.target.value })
             }
-            className="w-full mb-4 px-3 py-2 rounded bg-[#0f0f14] border border-white/10"
+            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
+                       border border-slate-300 dark:border-white/10"
           />
 
-          <div className="flex gap-2">
+          <select
+            value={form.assignedTo}
+            onChange={(e) =>
+              setForm({ ...form, assignedTo: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
+                       border border-slate-300 dark:border-white/10"
+          >
+            <option value="">Unassigned</option>
+            {members.map((m) => (
+              <option key={m._id} value={m._id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <select
+  value={form.priority}
+  onChange={(e) =>
+    setForm({ ...form, priority: e.target.value })
+  }
+  className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+>
+  <option value="low">Low</option>
+  <option value="medium">Medium</option>
+  <option value="high">High</option>
+</select>
+
+
+          <div className="flex gap-2 pt-2">
             <button
               onClick={handleAddTask}
-              className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
             >
               Save Task
             </button>
             <button
-              onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-700"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded"
             >
               Cancel
             </button>
           </div>
         </div>
       )}
-      
     </div>
   );
 };
-
-const FilterButton = ({ label, active, onClick }) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-1.5 rounded text-sm transition ${
-        active
-          ? "bg-blue-600 text-white"
-          : "bg-[#1a1f2b] text-gray-400 hover:bg-[#232838]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-};
-
 
 export default Workspace;

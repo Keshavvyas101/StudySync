@@ -1,27 +1,42 @@
 /* ================================
    Scoped Layout Styles ONLY
-   Applies ONLY inside .app-root
    ================================ */
 
-/* Root layout wrapper */
 .app-root {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f3f4f6;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* LIGHT THEME */
+  background: #f8fafc;
+  color: #0f172a; /* slate-900 */
+}
+
+/* DARK THEME */
+.dark .app-root {
+  background: #0f0f14;
+  color: #e5e7eb;
 }
 
 /* ---------- TOPBAR ---------- */
 .app-root .topbar {
   height: 60px;
-  background: #1b5e95;
-  color: white;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-   border-bottom: 3px solid rgb(13, 204, 214);
+
+  /* Light */
+  background: #ffffff;
+  color: #0f172a;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .app-root .topbar {
+  background: #111827;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .app-root .logo {
@@ -29,100 +44,130 @@
   font-weight: 700;
 }
 
-.app-root .logout-btn {
-  background: #ef4444;
-  border: none;
-  color: white;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-/* ---------- MAIN BODY GRID ---------- */
+/* ---------- MAIN BODY ---------- */
 .app-root .app-body {
   flex: 1;
   display: grid;
   grid-template-columns: 260px 1fr 300px;
-  background: #f3f4f6;
   overflow: hidden;
+
+  background: #f8fafc;
 }
 
-/* ---------- LEFT PANEL (ROOMS) ---------- */
+.dark .app-root .app-body {
+  background: #0f0f14;
+}
+
+/* ---------- LEFT PANEL ---------- */
 .app-root .room-panel {
-  background: #ffffff;
   padding: 16px;
-  border-right: 1px solid #e5e7eb;
   overflow-y: auto;
+
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+}
+
+.dark .app-root .room-panel {
+  background: #111827;
+  border-right: 1px solid rgba(255,255,255,0.1);
 }
 
 .app-root .panel-title {
-  margin-bottom: 12px;
   font-size: 16px;
   font-weight: 600;
+  color: #0f172a;
 }
 
-/* Room list */
-.app-root .room-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 16px 0;
+.dark .app-root .panel-title {
+  color: #e5e7eb;
 }
 
+/* ---------- ROOM ITEMS ---------- */
 .app-root .room-item {
   padding: 8px 10px;
-  margin-bottom: 6px;
   border-radius: 6px;
   cursor: pointer;
+  color: #1e293b;
 }
 
 .app-root .room-item:hover {
-  background: #e5e7eb;
+  background: #e2e8f0;
 }
 
 .app-root .room-item.active {
   background: #dbeafe;
+  color: #1e3a8a;
   font-weight: 600;
 }
 
-/* ---------- CENTER WORKSPACE ---------- */
-.app-root .workspace {
-  background: rgb(48, 58, 68); /* DARK CENTER */
-  color: white;
-  padding: 16px;
-  overflow-y: auto;
+.dark .app-root .room-item {
+  color: #e5e7eb;
 }
 
-/* ---------- RIGHT PANEL (FOCUS) ---------- */
-.app-root .focus-panel {
-  background: #1b5e95;
+.dark .app-root .room-item:hover {
+  background: #1f2937;
+}
+
+.dark .app-root .room-item.active {
+  background: #1e3a8a;
+  color: #ffffff;
+}
+
+/* ---------- WORKSPACE ---------- */
+.app-root .workspace {
   padding: 16px;
-  border-left: 1px solid #e5e7eb;
   overflow-y: auto;
+
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.dark .app-root .workspace {
+  background: #030712;
+  color: #e5e7eb;
+}
+
+/* ---------- FOCUS PANEL ---------- */
+.app-root .focus-panel {
+  padding: 16px;
+  background: #f1f5f9;
+  border-left: 1px solid #e5e7eb;
+  color: #0f172a;
+}
+
+.dark .app-root .focus-panel {
+  background: #111827;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  color: #e5e7eb;
 }
 
 .app-root .focus-timer {
   font-size: 36px;
   font-weight: bold;
   text-align: center;
-  margin: 20px 0;
 }
 
 .app-root .focus-quote {
   font-size: 12px;
-  color: #6b7280;
   text-align: center;
   margin-top: 12px;
+  color: #475569;
+}
+
+.dark .app-root .focus-quote {
+  color: #9ca3af;
 }
 
 /* ---------- BUTTON ---------- */
 .app-root .primary-btn {
   width: 100%;
   padding: 10px;
-  background: #2563eb;
-  border: none;
-  color: white;
   border-radius: 6px;
+  border: none;
   cursor: pointer;
+
+  background: #2563eb;
+  color: white;
 }
 
 .app-root .primary-btn:hover {

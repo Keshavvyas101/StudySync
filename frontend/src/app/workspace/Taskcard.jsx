@@ -1,202 +1,229 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTasks } from "../../context/TaskContext";
-import { useRooms } from "../../context/RoomContext";
-import { useUsers } from "../../context/UserContext";
+
+/* ===================== HELPERS ===================== */
+
+const getPriorityBorder = (priority) => {
+  if (priority === "high")
+    return "border-l-4 border-l-red-500 dark:border-l-red-400";
+  if (priority === "medium")
+    return "border-l-4 border-l-yellow-400 dark:border-l-yellow-300";
+  return "border-l-4 border-l-green-500 dark:border-l-green-400";
+};
+
+const getDeadlineStatus = (deadline) => {
+  if (!deadline) return null;
+
+  const today = new Date();
+  const due = new Date(deadline);
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+
+  const days = (due - today) / 86400000;
+
+  if (days < 0)
+    return {
+      label: "Overdue",
+      className:
+        "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    };
+
+  if (days <= 2)
+    return {
+      label: "Due Soon",
+      className:
+        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
+    };
+
+  return {
+    label: "On Track",
+    className:
+      "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  };
+};
+
+/* ===================== COMPONENT ===================== */
 
 const TaskCard = ({ task }) => {
   const { updateTask, deleteTask } = useTasks();
-  const { activeRoom } = useRooms();
-  const { users, fetchRoomMembers } = useUsers();
 
+  const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const isCompleted = task.status === "completed";
 
   const [form, setForm] = useState({
     title: task.title,
     description: task.description || "",
     deadline: task.deadline ? task.deadline.slice(0, 10) : "",
-    status: task.status,
-    assignedTo: task.assignedTo?._id || "",
   });
 
-  const getDeadlineColor = (deadline) => {
-  if (!deadline) return "border-gray-600";
-
-  const today = new Date();
-  const dueDate = new Date(deadline);
-
-  // remove time difference
-  today.setHours(0, 0, 0, 0);
-  dueDate.setHours(0, 0, 0, 0);
-
-  const diffTime = dueDate - today;
-  const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-  if (diffDays < 0) return "border-red-500";
-  if (diffDays <= 2) return "border-yellow-500";
-  return "border-green-500";
-};
-
-
-  useEffect(() => {
-    setForm({
-      title: task.title,
-      description: task.description || "",
-      deadline: task.deadline ? task.deadline.slice(0, 10) : "",
-      status: task.status,
-      assignedTo: task.assignedTo?._id || "",
-    });
-  }, [task]);
-
-  useEffect(() => {
-    if (isEditing && activeRoom?._id) {
-      fetchRoomMembers(activeRoom._id);
-    }
-  }, [isEditing, activeRoom]);
-
-  const toggleComplete = () => {
-    updateTask(task._id, {
-      status: isCompleted ? "todo" : "completed",
-    });
-  };
+  const deadlineStatus = getDeadlineStatus(task.deadline);
 
   const handleSave = () => {
+    if (form.title.trim().length < 3) return;
+
     updateTask(task._id, {
       title: form.title,
       description: form.description,
       deadline: form.deadline || null,
-      status: form.status,
-      assignedTo: form.assignedTo || null,
     });
-    setIsEditing(false);
-  };
 
-  const handleDelete = () => {
-    if (confirm("Delete this task?")) {
-      deleteTask(task._id);
-    }
+    setIsEditing(false);
   };
 
   return (
     <div
-  className={`bg-[#1a1f2b] border-l-4 rounded p-4 ${
-    getDeadlineColor(task.deadline)
-  }`}
->
+      className={`
+        rounded-xl p-4 transition
+        bg-white text-gray-800
+        dark:bg-slate-800 dark:text-slate-100
+        shadow-sm hover:shadow-md
+        border border-gray-200 dark:border-slate-700
+        ${getPriorityBorder(task.priority)}
+      `}
+    >
+      {/* ===== HEADER ===== */}
+      <div
+        onClick={() => setExpanded((p) => !p)}
+        className="flex justify-between items-start gap-3 cursor-pointer"
+      >
+        <div>
+          <h3 className="font-semibold text-base">
+            {task.title}
+          </h3>
 
-      {!isEditing ? (
-        <div className="flex justify-between gap-4">
-          <div className="flex gap-3">
-            <input
-              type="checkbox"
-              checked={isCompleted}
-              onChange={toggleComplete}
-              className="mt-1"
-            />
+          {task.assignedTo && (
+            <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">
+              Assigned to {task.assignedTo.name}
+            </p>
+          )}
+        </div>
 
-            <div>
-              <p
-                className={`font-medium ${
-                  isCompleted ? "line-through text-gray-400" : ""
-                }`}
-              >
-                {task.title}
-              </p>
+        {deadlineStatus && (
+          <span
+            className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${deadlineStatus.className}`}
+          >
+            {deadlineStatus.label}
+          </span>
+        )}
+      </div>
 
-              {task.assignedTo && (
-                <p className="text-xs text-blue-400">
-                  Assigned to {task.assignedTo.name}
+      {/* ===== EXPANDED ===== */}
+      {expanded && (
+        <div
+          className="mt-4 space-y-3 text-sm text-gray-600 dark:text-slate-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* ===== VIEW MODE ===== */}
+          {!isEditing && (
+            <>
+              {task.description && <p>{task.description}</p>}
+
+              {task.deadline && (
+                <p>
+                  📅 Due {new Date(task.deadline).toDateString()}
                 </p>
               )}
 
-             {task.deadline && (
-  <p
-    className={`text-xs mt-1 ${
-      getDeadlineColor(task.deadline).includes("red")
-        ? "text-red-400"
-        : getDeadlineColor(task.deadline).includes("yellow")
-        ? "text-yellow-400"
-        : "text-green-400"
-    }`}
-  >
-    Due {new Date(task.deadline).toDateString()}
-  </p>
-)}
+              {/* STATUS */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={task.status === "completed"}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    updateTask(task._id, {
+                      status:
+                        task.status === "completed"
+                          ? "todo"
+                          : "completed",
+                    });
+                  }}
+                  className="h-4 w-4 accent-green-600 cursor-pointer"
+                />
 
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    task.status === "completed"
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+                  }`}
+                >
+                  {task.status === "completed"
+                    ? "Completed"
+                    : "Active"}
+                </span>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => deleteTask(task._id)}
+                  className="px-3 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ===== EDIT MODE ===== */}
+          {isEditing && (
+            <div className="space-y-2">
+              <input
+                value={form.title}
+                onChange={(e) =>
+                  setForm({ ...form, title: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600"
+              />
+
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    description: e.target.value,
+                  })
+                }
+                rows={3}
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600"
+              />
+
+              <input
+                type="date"
+                value={form.deadline}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    deadline: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600"
+              />
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSave}
+                  className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1 text-xs rounded bg-gray-500 text-white hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-3 py-1 bg-blue-600 rounded"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              className="px-3 py-1 bg-red-600 rounded"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <input
-            value={form.title}
-            onChange={(e) =>
-              setForm({ ...form, title: e.target.value })
-            }
-            className="w-full px-2 py-1 bg-[#0f0f14]"
-          />
-
-          <textarea
-            value={form.description}
-            onChange={(e) =>
-              setForm({ ...form, description: e.target.value })
-            }
-            className="w-full px-2 py-1 bg-[#0f0f14]"
-          />
-
-          <input
-            type="date"
-            value={form.deadline}
-            onChange={(e) =>
-              setForm({ ...form, deadline: e.target.value })
-            }
-            className="w-full px-2 py-1 bg-[#0f0f14]"
-          />
-
-          <select
-            value={form.assignedTo}
-            onChange={(e) =>
-              setForm({ ...form, assignedTo: e.target.value })
-            }
-            className="w-full px-2 py-1 bg-[#0f0f14]"
-          >
-            <option value="">Unassigned</option>
-            {users.map((u) => (
-              <option key={u._id} value={u._id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              className="px-3 py-1 bg-green-600 rounded"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setIsEditing(false)}
-              className="px-3 py-1 bg-gray-600 rounded"
-            >
-              Cancel
-            </button>
-          </div>
+          )}
         </div>
       )}
     </div>

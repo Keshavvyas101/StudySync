@@ -9,7 +9,7 @@ import Room from "../models/Room.js";
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { title, description, deadline, assignedTo } = req.body;
+    const { title, description, deadline, assignedTo , priority} = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Task title is required" });
@@ -50,6 +50,7 @@ export const createTask = async (req, res) => {
       room: roomId,
       assignedTo: assignedTo || null,
       createdBy: req.user._id,
+      priority: priority || "medium",
     });
 
     res.status(201).json({
@@ -104,7 +105,7 @@ export const getTasksByRoom = async (req, res) => {
 export const updateTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, status, deadline, assignedTo } = req.body;
+    const { title, description, status, deadline, assignedTo, priority } = req.body;
 
     const task = await Task.findById(taskId);
     if (!task) {
@@ -117,28 +118,32 @@ export const updateTask = async (req, res) => {
     }
 
     const userId = req.user._id.toString();
-
-    const isCreator = task.createdBy.toString() === userId;
+    const isAssigned = task.assignedTo?.toString() === userId;
     const isOwner = room.owner.toString() === userId;
-
-    if (!isCreator && !isOwner) {
+    
+    if (!isAssigned && !isOwner) {
       return res.status(403).json({ message: "Not authorized to update this task" });
     }
 
-    // Validate assignedTo (if provided)
-    if (assignedTo) {
+    // ✅ ASSIGN / UNASSIGN FIX
+    if(isOwner){
+    if (assignedTo === null) {
+      task.assignedTo = null;
+    } else if (assignedTo) {
       const isMember = room.members.some(
         (memberId) => memberId.toString() === assignedTo
       );
+    
       if (!isMember) {
         return res
           .status(400)
           .json({ message: "Assigned user is not a member of this room" });
       }
+
       task.assignedTo = assignedTo;
     }
+  }
 
-    // Validate status
     if (status) {
       const allowedStatus = ["todo", "in-progress", "completed"];
       if (!allowedStatus.includes(status)) {
@@ -153,14 +158,19 @@ export const updateTask = async (req, res) => {
 
     await task.save();
 
+    const populatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email");
+
     res.status(200).json({
       message: "Task updated successfully",
-      task,
+      task: populatedTask,
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to update task", error });
   }
 };
+
 
 
 /**
@@ -201,3 +211,20 @@ export const deleteTask = async (req, res) => {
   }
 };
 
+// Toggle only status
+export const toggleTaskStatus = async (req, res) => {
+  const task = req.task;
+
+  task.status =
+    task.status === "completed" ? "todo" : "completed";
+
+  if (task.status === "completed") {
+    task.completedAt = new Date();
+  } else {
+    task.completedAt = null;
+  }
+
+  await task.save();
+
+  res.status(200).json({ task });
+};

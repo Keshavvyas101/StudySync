@@ -1,48 +1,84 @@
+// src/context/RoomContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../services/api";
+import { useAuth } from "./AuthContext";
 
 const RoomContext = createContext();
 
 export const RoomProvider = ({ children }) => {
+  const { user } = useAuth(); // 🔥 react to login/logout
+
   const [rooms, setRooms] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  /* ---------------- FETCH ROOMS ---------------- */
   const fetchRooms = async () => {
-  try {
-    setLoading(true);
-    const res = await api.get("/rooms/my");
+    if (!user) return;
 
-    const roomList = res.data.rooms || res.data;
+    try {
+      setLoading(true);
+      const res = await api.get("/rooms/my");
 
-    setRooms(roomList);
-    setActiveRoom(roomList[0] || null);
-  } catch (err) {
-    console.error("Failed to fetch rooms", err);
-  } finally {
-    setLoading(false);
-  }
-};
+      const roomList = res.data.rooms || [];
+      setRooms(roomList);
+      setActiveRoom(roomList[0] || null);
+    } catch (err) {
+      console.error("Failed to fetch rooms", err);
+      setRooms([]);
+      setActiveRoom(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  /* ---------------- FETCH MEMBERS ---------------- */
+  const fetchMembers = async (roomId) => {
+    if (!roomId) return;
 
+    try {
+      const res = await api.get(`/rooms/${roomId}/members`);
+      setMembers(res.data.members || []);
+    } catch (err) {
+      console.error("Failed to fetch members", err);
+      setMembers([]);
+    }
+  };
+
+  /* ---------------- CREATE ROOM ---------------- */
   const createRoom = async (name) => {
-  try {
-    const res = await api.post("/rooms", { name });
+    try {
+      const res = await api.post("/rooms", { name });
+      const newRoom = res.data.room;
 
-    // normalize response shape
-    const newRoom = res.data.room || res.data;
+      setRooms((prev) => [...prev, newRoom]);
+      setActiveRoom(newRoom);
+    } catch (err) {
+      console.error("Failed to create room", err);
+    }
+  };
 
-    setRooms((prev) => [...prev, newRoom]);
-    setActiveRoom(newRoom);
-  } catch (err) {
-    console.error("Failed to create room", err);
-  }
-};
-
-
+  /* ---------------- REACT TO AUTH CHANGE ---------------- */
   useEffect(() => {
-    fetchRooms();
-  }, []);
+    if (user) {
+      fetchRooms(); // login → load rooms
+    } else {
+      // logout → clear everything
+      setRooms([]);
+      setActiveRoom(null);
+      setMembers([]);
+    }
+  }, [user]);
+
+  /* ---------------- REACT TO ACTIVE ROOM CHANGE ---------------- */
+  useEffect(() => {
+    if (activeRoom?._id) {
+      fetchMembers(activeRoom._id);
+    } else {
+      setMembers([]);
+    }
+  }, [activeRoom]);
 
   return (
     <RoomContext.Provider
@@ -50,7 +86,10 @@ export const RoomProvider = ({ children }) => {
         rooms,
         activeRoom,
         setActiveRoom,
+        members,
         loading,
+        fetchRooms,
+        fetchMembers,
         createRoom,
       }}
     >
@@ -60,12 +99,9 @@ export const RoomProvider = ({ children }) => {
 };
 
 export const useRooms = () => {
-  const context = useContext(RoomContext);
-  if (!context) {
+  const ctx = useContext(RoomContext);
+  if (!ctx) {
     throw new Error("useRooms must be used within RoomProvider");
   }
-  return context;
+  return ctx;
 };
-
-
-

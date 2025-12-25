@@ -11,19 +11,19 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { UserProvider } from "./context/UserContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AuthProvider>
-  <ThemeProvider>
-    <RoomProvider>
-      <UserProvider>
-        <TaskProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </TaskProvider>
-      </UserProvider>
-    </RoomProvider>
-  </ThemeProvider>
-</AuthProvider>
-
+  <React.StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <ThemeProvider>
+          <RoomProvider>
+            <UserProvider>
+              <TaskProvider>
+                <App />
+              </TaskProvider>
+            </UserProvider>
+          </RoomProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  </React.StrictMode>
 );
-

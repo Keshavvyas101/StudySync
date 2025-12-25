@@ -4,16 +4,40 @@ import {
   joinRoom,
   getMyRooms,
   leaveRoom,
-  removeMember
+  removeMember,
 } from "../controllers/roomController.js";
-import  protect from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import {
+  requireRoomMember,
+  requireRoomOwner,
+} from "../middlewares/roomPermissions.js";
 
 const router = express.Router();
 
 router.post("/", protect, createRoom);
 router.post("/join", protect, joinRoom);
 router.get("/my", protect, getMyRooms);
-router.post("/leave", protect, leaveRoom);
-router.post("/remove", protect, removeMember);
+router.get("/:roomId/members", protect, requireRoomMember, (req, res) => {
+  res.status(200).json({
+    members: req.room.members,
+  });
+});
+
+// member only
+router.post(
+  "/leave",
+  protect,
+  requireRoomMember,
+  leaveRoom
+);
+
+// owner only
+router.post(
+  "/remove",
+  protect,
+  requireRoomMember,
+  requireRoomOwner,
+  removeMember
+);
 
 export default router;

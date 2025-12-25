@@ -18,19 +18,8 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const createTask = async ({
-    roomId,
-    title,
-    description,
-    deadline,
-    assignedTo,
-  }) => {
-    const res = await api.post(`/tasks/${roomId}`, {
-      title,
-      description,
-      deadline,
-      assignedTo,
-    });
+  const createTask = async (roomId, data) => {
+    const res = await api.post(`/tasks/${roomId}`, data);
     setTasks((prev) => [res.data.task, ...prev]);
   };
 
