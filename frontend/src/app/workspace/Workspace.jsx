@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRooms } from "../../context/RoomContext";
 import { useTasks } from "../../context/TaskContext";
 import TaskCard from "./TaskCard";
+import "../layout/layout.css"
 
 const Workspace = () => {
   const { activeRoom, members } = useRooms();
@@ -59,7 +60,7 @@ const Workspace = () => {
   });
 
   return (
-    <div className="workspace w-full h-full px-6">
+    <div className="workspace w-full h-full px-6 ">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">

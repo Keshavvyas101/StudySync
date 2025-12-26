@@ -1,4 +1,6 @@
 import express from "express";
+import { getRoomMessages } from "../controllers/roomController.js";
+
 import {
   createRoom,
   joinRoom,
@@ -17,6 +19,7 @@ const router = express.Router();
 router.post("/", protect, createRoom);
 router.post("/join", protect, joinRoom);
 router.get("/my", protect, getMyRooms);
+router.get("/:roomId/messages", protect, getRoomMessages);
 router.get("/:roomId/members", protect, requireRoomMember, (req, res) => {
   res.status(200).json({
     members: req.room.members,

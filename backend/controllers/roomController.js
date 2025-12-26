@@ -1,3 +1,5 @@
+
+import Message from "../models/Message.js";
 import Room from "../models/Room.js";
 import crypto from "crypto";
 
@@ -173,4 +175,34 @@ export const getRoomMembers = async (req, res) => {
     members: req.room.members,
     owner: req.room.owner,
   });
+};
+// import Room from "../models/Room.js";
+
+export const getRoomMessages = async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store"); // 👈 ADD THIS
+
+    const { roomId } = req.params;
+    const userId = req.user._id;
+
+    const room = await Room.findById(roomId);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isMember = room.members.some(
+      (m) => m.toString() === userId.toString()
+    );
+    if (!isMember) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const messages = await Message.find({ room: roomId })
+      .populate("sender", "name")
+      .sort({ createdAt: 1 });
+
+    return res.status(200).json({ messages });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
 };

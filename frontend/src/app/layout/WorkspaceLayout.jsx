@@ -4,6 +4,8 @@ import FocusPanel from "./FocusPanel";
 import Workspace from "../workspace/Workspace";
 import "./layout.css";
 
+
+
 const WorkspaceLayout = () => {
   return (
     <div className="app-root">

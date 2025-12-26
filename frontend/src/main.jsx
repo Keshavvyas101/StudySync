@@ -9,6 +9,13 @@ import { RoomProvider } from "./context/RoomContext";
 import { TaskProvider } from "./context/TaskContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UserProvider } from "./context/UserContext";
+import { ChatProvider } from "./context/ChatContext"; // ✅ ADD THIS
+// Apply theme before first paint
+const savedTheme = localStorage.getItem("theme");
+if (savedTheme === "dark") {
+  document.documentElement.classList.add("dark");
+}
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -17,9 +24,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <ThemeProvider>
           <RoomProvider>
             <UserProvider>
-              <TaskProvider>
-                <App />
-              </TaskProvider>
+              {/* <ChatProvider>   ✅ ADD THIS */}
+                <TaskProvider>
+                  <App />
+                </TaskProvider>
+              {/* </ChatProvider> */}
             </UserProvider>
           </RoomProvider>
         </ThemeProvider>
