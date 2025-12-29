@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useRooms } from "../../context/RoomContext";
 import { useTasks } from "../../context/TaskContext";
 import TaskCard from "./TaskCard";
-import "../layout/layout.css"
+import "../layout/layout.css";
 
 const Workspace = () => {
   const { activeRoom, members } = useRooms();
@@ -15,7 +15,7 @@ const Workspace = () => {
     description: "",
     deadline: "",
     assignedTo: "",
-    priority: "medium"
+    priority: "medium",
   });
 
   useEffect(() => {
@@ -26,7 +26,7 @@ const Workspace = () => {
 
   if (!activeRoom) {
     return (
-      <div className="workspace flex items-center justify-center text-gray-400">
+      <div className="workspace flex items-center justify-center text-slate-400 dark:text-slate-500">
         Select a room to see tasks
       </div>
     );
@@ -40,7 +40,7 @@ const Workspace = () => {
       description: form.description,
       deadline: form.deadline || null,
       assignedTo: form.assignedTo || null,
-      priority: form.priority || "medium"
+      priority: form.priority || "medium",
     });
 
     setForm({
@@ -48,7 +48,7 @@ const Workspace = () => {
       description: "",
       deadline: "",
       assignedTo: "",
-      priority: "medium"
+      priority: "medium",
     });
     setShowForm(false);
   };
@@ -60,10 +60,10 @@ const Workspace = () => {
   });
 
   return (
-    <div className="workspace w-full h-full px-6 ">
+    <div className="workspace w-full h-full px-6 py-6">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           {activeRoom.name}
         </h2>
 
@@ -73,10 +73,10 @@ const Workspace = () => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded text-sm transition ${
+              className={`px-4 py-1.5 rounded-full text-sm transition ${
                 filter === f
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-200 dark:bg-[#1a1f2b] text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-[#232838]"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               {f}
@@ -86,13 +86,13 @@ const Workspace = () => {
       </div>
 
       {loading && (
-        <p className="text-gray-400">
+        <p className="text-slate-400 dark:text-slate-500">
           Loading tasks…
         </p>
       )}
 
       {!loading && filteredTasks.length === 0 && (
-        <p className="text-gray-400">
+        <p className="text-slate-400 dark:text-slate-500">
           No tasks yet
         </p>
       )}
@@ -100,11 +100,7 @@ const Workspace = () => {
       {/* TASK LIST */}
       <div className="space-y-4">
         {filteredTasks.map((task) => (
-          <TaskCard
-            key={task._id}
-            task={task}
-            members={members}
-          />
+          <TaskCard key={task._id} task={task} members={members} />
         ))}
       </div>
 
@@ -112,22 +108,24 @@ const Workspace = () => {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="mt-8 w-full py-3 rounded bg-blue-600 hover:bg-blue-700 text-white"
+          className="mt-8 w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
         >
           + Add New Task
         </button>
       ) : (
-        <div className="mt-6 p-4 rounded border border-slate-300 dark:border-white/10
-                        bg-white dark:bg-[#15151c] space-y-3">
-
+        <div
+          className="mt-6 p-5 rounded-xl border border-slate-200 dark:border-slate-800
+                     bg-white dark:bg-slate-900 space-y-3 shadow-sm"
+        >
           <input
             placeholder="Task title"
             value={form.title}
             onChange={(e) =>
               setForm({ ...form, title: e.target.value })
             }
-            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
-                       border border-slate-300 dark:border-white/10"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
+                       border border-slate-200 dark:border-slate-700
+                       text-slate-900 dark:text-slate-100"
           />
 
           <textarea
@@ -136,8 +134,9 @@ const Workspace = () => {
             onChange={(e) =>
               setForm({ ...form, description: e.target.value })
             }
-            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
-                       border border-slate-300 dark:border-white/10"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
+                       border border-slate-200 dark:border-slate-700
+                       text-slate-900 dark:text-slate-100"
           />
 
           <input
@@ -146,8 +145,9 @@ const Workspace = () => {
             onChange={(e) =>
               setForm({ ...form, deadline: e.target.value })
             }
-            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
-                       border border-slate-300 dark:border-white/10"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
+                       border border-slate-200 dark:border-slate-700
+                       text-slate-900 dark:text-slate-100"
           />
 
           <select
@@ -155,8 +155,9 @@ const Workspace = () => {
             onChange={(e) =>
               setForm({ ...form, assignedTo: e.target.value })
             }
-            className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-[#0f0f14]
-                       border border-slate-300 dark:border-white/10"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
+                       border border-slate-200 dark:border-slate-700
+                       text-slate-900 dark:text-slate-100"
           >
             <option value="">Unassigned</option>
             {members.map((m) => (
@@ -165,29 +166,31 @@ const Workspace = () => {
               </option>
             ))}
           </select>
-          <select
-  value={form.priority}
-  onChange={(e) =>
-    setForm({ ...form, priority: e.target.value })
-  }
-  className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
->
-  <option value="low">Low</option>
-  <option value="medium">Medium</option>
-  <option value="high">High</option>
-</select>
 
+          <select
+            value={form.priority}
+            onChange={(e) =>
+              setForm({ ...form, priority: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
+                       border border-slate-200 dark:border-slate-700
+                       text-slate-900 dark:text-slate-100"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
 
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleAddTask}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
             >
               Save Task
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded"
+              className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg"
             >
               Cancel
             </button>

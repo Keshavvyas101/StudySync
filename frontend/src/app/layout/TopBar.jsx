@@ -9,25 +9,41 @@ const Topbar = () => {
   const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
-    await logout();          // ✅ clears user immediately
-    navigate("/login", { replace: true }); // ✅ instant redirect
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   return (
-    <header className="topbar flex justify-between items-center px-6 h-14 border-b border-white/10">
-      <span className="text-lg font-semibold">StudySync</span>
+    <header
+      className="topbar flex justify-between items-center px-6 h-14
+                 bg-white dark:bg-slate-950
+                 border-b border-slate-200 dark:border-slate-800"
+    >
+      {/* LOGO / TITLE */}
+      <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        StudySync
+      </span>
 
-      <div className="flex gap-3">
+      {/* ACTIONS */}
+      <div className="flex items-center gap-3">
         <button
           onClick={toggleTheme}
-          className="px-3 py-1 rounded bg-[#1a1f2b]"
+          className="h-9 w-9 flex items-center justify-center rounded-full
+                     bg-slate-100 dark:bg-slate-800
+                     text-slate-700 dark:text-slate-200
+                     hover:bg-slate-200 dark:hover:bg-slate-700
+                     transition"
+          title="Toggle theme"
         >
           {theme === "dark" ? "🌞" : "🌙"}
         </button>
 
         <button
           onClick={handleLogout}
-          className="px-3 py-1 rounded bg-red-600 hover:bg-red-700"
+          className="px-4 py-1.5 rounded-full
+                     bg-rose-600 hover:bg-rose-700
+                     text-white text-sm font-medium
+                     transition"
         >
           Logout
         </button>

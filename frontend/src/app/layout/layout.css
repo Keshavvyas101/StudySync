@@ -1,268 +1,189 @@
 /* ================================
-   Scoped Layout Styles ONLY
+   ROOT
    ================================ */
-
 .app-root {
   height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-
-  /* LIGHT THEME */
   background: #f8fafc;
-  color: #0f172a; /* slate-900 */
+  color: #0f172a;
 }
 
-/* DARK THEME */
 .dark .app-root {
   background: #0f0f14;
   color: #e5e7eb;
 }
 
-/* ---------- TOPBAR ---------- */
-.app-root .topbar {
+/* ================================
+   TOPBAR
+   ================================ */
+.topbar {
   height: 60px;
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  /* Light */
   background: #ffffff;
-  color: #0f172a;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.dark .app-root .topbar {
+.dark .topbar {
   background: #111827;
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.app-root .logo {
-  font-size: 20px;
-  font-weight: 700;
-}
-
-/* ---------- MAIN BODY ---------- */
-.app-root .app-body {
+/* ================================
+   MAIN BODY (GRID)
+   ================================ */
+.app-body {
   flex: 1;
   display: grid;
   grid-template-columns: 260px 1fr 300px;
   overflow: hidden;
-
-  background: #f8fafc;
+  min-height: 0;
 }
 
-.dark .app-root .app-body {
+.dark .app-body {
   background: #0f0f14;
 }
 
-/* ---------- LEFT PANEL ---------- */
-.app-root .room-panel {
+/* ================================
+   PANELS (COMMON)
+   ================================ */
+.room-panel,
+.workspace,
+.focus-panel {
+  height: 100%;
+  overflow: hidden;
   padding: 16px;
-  overflow-y: auto;
-
   background: #ffffff;
-  border-right: 1px solid #e5e7eb;
 }
 
-.dark .app-root .room-panel {
-  background: #111827;
-  border-right: 1px solid rgba(255,255,255,0.1);
+.dark .room-panel,
+.dark .workspace {
+  background: #232429;
 }
 
-.app-root .panel-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
+/* ================================
+   ROOM PANEL
+   ================================ */
+.room-panel {
+  border-right: 1px solid #e2e8f0;
 }
 
-.dark .app-root .panel-title {
-  color: #e5e7eb;
+.dark .room-panel {
+  border-right-color: rgba(255, 255, 255, 0.1);
 }
 
-/* ---------- ROOM ITEMS ---------- */
-.app-root .room-item {
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #1e293b;
-}
-
-.app-root .room-item:hover {
-  background: #e2e8f0;
-}
-
-.app-root .room-item.active {
-  background: #dbeafe;
-  color: #1e3a8a;
-  font-weight: 600;
-}
-
-.dark .app-root .room-item {
-  color: #e5e7eb;
-}
-
-.dark .app-root .room-item:hover {
-  background: #1f2937;
-}
-
-.dark .app-root .room-item.active {
-  background: #1e3a8a;
-  color: #ffffff;
-}
-
-/* ---------- WORKSPACE ---------- */
-.app-root .workspace {
-  padding: 16px;
-  overflow-y: auto;
-
-  background: #ffffff;
-  color: #0f172a;
-}
-
-.dark .app-root .workspace {
-  background: #030712;
-  color: #e5e7eb;
-}
-
-/* ---------- FOCUS PANEL ---------- */
-.app-root .focus-panel {
-  padding: 16px;
+/* ================================
+   FOCUS PANEL (CHAT CONTAINER)
+   ================================ */
+.focus-panel {
   background: #f1f5f9;
-  border-left: 1px solid #e5e7eb;
-  color: #0f172a;
+  border-left: 1px solid #e2e8f0;
+  position: relative;
 }
 
-.dark .app-root .focus-panel {
+.dark .focus-panel {
   background: #111827;
-  border-left: 1px solid rgba(255,255,255,0.1);
-  color: #e5e7eb;
+  border-left-color: rgba(255, 255, 255, 0.1);
 }
 
-.app-root .focus-timer {
-  font-size: 36px;
-  font-weight: bold;
-  text-align: center;
+/* ================================
+   CHAT LAYOUT
+   ================================ */
+.chat-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.app-root .focus-quote {
-  font-size: 12px;
-  text-align: center;
-  margin-top: 12px;
-  color: #475569;
+.chat-header {
+  font-weight: 600;
+  font-size: 14px;
 }
 
-.dark .app-root .focus-quote {
-  color: #9ca3af;
-}
-
-/* ---------- BUTTON ---------- */
-.app-root .primary-btn {
-  width: 100%;
-  padding: 10px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-
-  background: #2563eb;
-  color: white;
-}
-
-.app-root .primary-btn:hover {
-  background: #1d4ed8;
-}
-
-
-
-/* messages container */
+/* IMPORTANT:
+   Chat inherits background from focus-panel
+   NO background colors here
+*/
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* wrapper */
+/* ================================
+   CHAT BUBBLES
+   ================================ */
 .chat-message {
   max-width: 70%;
   display: flex;
   flex-direction: column;
 }
 
-/* LEFT side — others */
 .chat-message.other {
   align-self: flex-start;
-  text-align: left;
 }
 
-/* RIGHT side — me */
 .chat-message.own {
   align-self: flex-end;
   text-align: right;
 }
 
-/* sender name */
-.chat-sender {
-  font-size: 11px;
-  opacity: 0.7;
-  margin-bottom: 2px;
-}
-
-/* message bubble */
 .chat-bubble {
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 16px;
   font-size: 14px;
   line-height: 1.4;
-}
-
-/* my message bubble */
-.chat-message.own .chat-bubble {
-  background: #2563eb;
-  color: #ffffff;
-  border-bottom-right-radius: 4px;
-}
-
-/* other message bubble */
-.chat-message.other .chat-bubble {
   background: #e5e7eb;
-  color: #111827;
-  border-bottom-left-radius: 4px;
+  color: #0f172a;
 }
 
-/* dark mode */
+.chat-message.own .chat-bubble {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
 .dark .chat-message.other .chat-bubble {
   background: #1f2937;
   color: #e5e7eb;
 }
 
-.dark .chat-message.own .chat-bubble {
-  background: #3b82f6;
-}
-
-
-
-/* timestamp */
+/* ================================
+   CHAT META
+   ================================ */
 .chat-time {
-  font-size: 10px;
-  margin-top: 2px;
-  opacity: 0.6;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
-/* alignment */
-.chat-message.own .chat-time {
-  text-align: right;
-}
-
-.chat-message.other .chat-time {
-  text-align: left;
-}
-
-/* dark mode */
 .dark .chat-time {
-  opacity: 0.5;
+  color: #64748b;
+}
+
+/* ================================
+   RESIZE HANDLE
+   ================================ */
+.resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resize-handle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .resize-handle:hover {
+  background: rgba(255, 255, 255, 0.08);
 }

@@ -102,6 +102,8 @@ export const getTasksByRoom = async (req, res) => {
  * @route   PATCH /api/tasks/:taskId
  * @access  Private (Task creator or Room owner)
  */
+
+
 export const updateTask = async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -126,6 +128,8 @@ export const updateTask = async (req, res) => {
     }
 
     // ✅ ASSIGN / UNASSIGN FIX
+
+    
     if(isOwner){
     if (assignedTo === null) {
       task.assignedTo = null;

@@ -14,6 +14,7 @@ import {
   requireRoomOwner,
 } from "../middlewares/roomPermissions.js";
 
+
 const router = express.Router();
 
 router.post("/", protect, createRoom);

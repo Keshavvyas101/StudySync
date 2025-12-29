@@ -1,74 +1,83 @@
 // src/context/ChatContext.jsx
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { io } from "socket.io-client";
 import { useRooms } from "./RoomContext";
 import { useAuth } from "./AuthContext";
 import api from "../services/api";
 
-const ChatContext = createContext();
+const ChatContext = createContext(null);
 
 export const ChatProvider = ({ children }) => {
   const { activeRoom } = useRooms();
   const { user } = useAuth();
 
-  const socketRef = useRef(null);
-  const abortRef = useRef(null);
+  const roomId = activeRoom?._id || activeRoom?.id;
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [socketReady, setSocketReady] = useState(false);
+
+  const socketRef = useRef(null);
+  const connectedRef = useRef(false);
+  const abortRef = useRef(null);
 
   /* =====================================
-     CONNECT SOCKET ON LOGIN
+     SOCKET CONNECT (STRICTMODE SAFE)
      ===================================== */
   useEffect(() => {
     if (!user) return;
+    if (connectedRef.current) return;
 
     const socket = io("http://localhost:5000", {
       withCredentials: true,
+      autoConnect: true,
     });
 
     socketRef.current = socket;
+    connectedRef.current = true;
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected");
-      setSocketReady(true);
+      console.log("✅ Socket connected:", socket.id);
     });
 
     socket.on("disconnect", () => {
-      setSocketReady(false);
-    });
-
-    socket.on("new-message", (message) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m._id === message._id)) return prev;
-        return [...prev, message];
-      });
+      connectedRef.current = false;
+      socketRef.current = null;
     });
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
-      setSocketReady(false);
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        connectedRef.current = false;
+      }
     };
   }, [user]);
 
   /* =====================================
-     RESET ON LOGOUT
+     JOIN ROOM ON ROOM CHANGE
      ===================================== */
   useEffect(() => {
-    if (!user) {
-      setMessages([]);
-    }
-  }, [user]);
+    if (!socketRef.current) return;
+    if (!roomId) return;
+
+    socketRef.current.emit("join-room", roomId);
+
+    return () => {
+      socketRef.current?.emit("leave-room", roomId);
+    };
+  }, [roomId]);
 
   /* =====================================
-     LOAD MESSAGES ON ROOM CHANGE
+     FETCH OLD MESSAGES (REST)
      ===================================== */
   useEffect(() => {
-    const roomId = activeRoom?._id || activeRoom?.id;
-
-    if (!roomId) {
+    if (!roomId || !user) {
       setMessages([]);
       return;
     }
@@ -80,10 +89,12 @@ export const ChatProvider = ({ children }) => {
     const loadMessages = async () => {
       try {
         setLoading(true);
+
         const res = await api.get(
           `/rooms/${roomId}/messages`,
           { signal: controller.signal }
         );
+
         setMessages(res.data.messages || []);
       } catch (err) {
         if (err.name !== "CanceledError") {
@@ -97,20 +108,36 @@ export const ChatProvider = ({ children }) => {
 
     loadMessages();
 
-    if (socketReady && socketRef.current) {
-      socketRef.current.emit("join-room", roomId);
-    }
-
     return () => controller.abort();
-  }, [activeRoom, socketReady]);
+  }, [roomId, user]);
 
   /* =====================================
-     SEND MESSAGE (SAFE)
+     RECEIVE NEW MESSAGE (SOCKET)
+     ===================================== */
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    const handleNewMessage = (message) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === message._id)) return prev;
+        return [...prev, message];
+      });
+    };
+
+    socketRef.current.on("new-message", handleNewMessage);
+
+    return () => {
+      socketRef.current?.off("new-message", handleNewMessage);
+    };
+  }, []);
+
+  /* =====================================
+     SEND MESSAGE
      ===================================== */
   const sendMessage = (text) => {
-    const roomId = activeRoom?._id || activeRoom?.id;
-    if (!text || !roomId || !user) return;
-    if (!socketReady || !socketRef.current) return;
+    if (!socketRef.current) return;
+    if (!text?.trim()) return;
+    if (!roomId || !user) return;
 
     socketRef.current.emit("send-message", {
       roomId,
@@ -136,14 +163,12 @@ export const ChatProvider = ({ children }) => {
 
 export const useChat = () => {
   const ctx = useContext(ChatContext);
-  if (!ctx) {
-    console.error("useChat must be used within ChatProvider");
-    return {
+  return (
+    ctx || {
       messages: [],
       loading: false,
       sendMessage: () => {},
       clearMessages: () => {},
-    };
-  }
-  return ctx;
+    }
+  );
 };

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 
-
+@custom-variant dark (&:where(.dark, .dark *));
 
 html,
 body,
@@ -11,4 +11,6 @@ body,
   margin: 0;
 }
 
-
+body{
+  overflow: hidden;
+}

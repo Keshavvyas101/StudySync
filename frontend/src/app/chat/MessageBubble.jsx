@@ -20,20 +20,32 @@ const MessageBubble = ({ message }) => {
     : "";
 
   return (
-    <div className={`chat-message ${isOwnMessage ? "own" : "other"}`}>
+    <div
+      className={`flex flex-col ${
+        isOwnMessage ? "items-end" : "items-start"
+      }`}
+    >
       {!isOwnMessage && (
-        <div className="chat-sender">
+        <span className="mb-1 text-xs text-slate-500 dark:text-slate-400">
           {message.sender?.name || "User"}
-        </div>
+        </span>
       )}
 
-      <div className="chat-bubble">
+      <div
+        className={`px-3 py-2 rounded-2xl max-w-[70%] text-sm
+          ${
+            isOwnMessage
+              ? "bg-indigo-600 text-white rounded-br-sm"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm"
+          }
+        `}
+      >
         {message.content}
       </div>
 
-      <div className="chat-time">
+      <span className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
         {time}
-      </div>
+      </span>
     </div>
   );
 };
