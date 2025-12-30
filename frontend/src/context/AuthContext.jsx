@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../services/api";
+import { connectSocket, disconnectSocket } from "../services/socket";
 
 const AuthContext = createContext(null);
 
@@ -24,14 +25,23 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, []);
 
-  // 🔹 LOGOUT (COMPLETE AUTH LOOP)
+  // 🔐 SOCKET LIFECYCLE (LOCKED HERE)
+  useEffect(() => {
+    if (user) {
+      connectSocket(); // ✅ connect once when user exists
+    } else {
+      disconnectSocket(); // ✅ disconnect on logout / auth loss
+    }
+  }, [user]);
+
+  // 🔹 LOGOUT
   const logout = async () => {
     try {
       await api.post("/auth/logout");
     } catch (err) {
       console.error("Logout API failed", err);
     } finally {
-      setUser(null);
+      setUser(null); // triggers socket disconnect via effect
     }
   };
 
@@ -39,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     fetchMe,
-    logout, // 🔴 exposed to TopBar
+    logout,
   };
 
   return (

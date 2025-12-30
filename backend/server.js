@@ -11,6 +11,12 @@ import userRoutes from "./routes/userRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import chatSocket from "./sockets/chatSocket.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import notificationSocket from "./sockets/notificationSocket.js";
+import { initNotificationSocket } from "./services/notificationService.js";
+
+
+
 
 dotenv.config();
 connectDB();
@@ -30,6 +36,8 @@ const io = new Server(server, {
 
 /* attach socket logic */
 chatSocket(io);
+notificationSocket(io);
+initNotificationSocket(io);
 
 /* ---------------- MIDDLEWARES ---------------- */
 app.use(
@@ -47,6 +55,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/notifications", notificationRoutes);
+
 
 /* ---------------- HEALTH CHECK ---------------- */
 app.get("/", (req, res) => {

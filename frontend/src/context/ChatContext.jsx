@@ -6,10 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { io } from "socket.io-client";
 import { useRooms } from "./RoomContext";
 import { useAuth } from "./AuthContext";
 import api from "../services/api";
+import socket from "../services/socket";
 
 const ChatContext = createContext(null);
 
@@ -22,56 +22,20 @@ export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const socketRef = useRef(null);
-  const connectedRef = useRef(false);
   const abortRef = useRef(null);
 
   /* =====================================
-     SOCKET CONNECT (STRICTMODE SAFE)
+     JOIN / LEAVE ROOM
      ===================================== */
   useEffect(() => {
-    if (!user) return;
-    if (connectedRef.current) return;
+    if (!roomId || !user) return;
 
-    const socket = io("http://localhost:5000", {
-      withCredentials: true,
-      autoConnect: true,
-    });
-
-    socketRef.current = socket;
-    connectedRef.current = true;
-
-    socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-      connectedRef.current = false;
-      socketRef.current = null;
-    });
+    socket.emit("join-room", roomId);
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        connectedRef.current = false;
-      }
+      socket.emit("leave-room", roomId);
     };
-  }, [user]);
-
-  /* =====================================
-     JOIN ROOM ON ROOM CHANGE
-     ===================================== */
-  useEffect(() => {
-    if (!socketRef.current) return;
-    if (!roomId) return;
-
-    socketRef.current.emit("join-room", roomId);
-
-    return () => {
-      socketRef.current?.emit("leave-room", roomId);
-    };
-  }, [roomId]);
+  }, [roomId, user]);
 
   /* =====================================
      FETCH OLD MESSAGES (REST)
@@ -89,12 +53,10 @@ export const ChatProvider = ({ children }) => {
     const loadMessages = async () => {
       try {
         setLoading(true);
-
         const res = await api.get(
           `/rooms/${roomId}/messages`,
           { signal: controller.signal }
         );
-
         setMessages(res.data.messages || []);
       } catch (err) {
         if (err.name !== "CanceledError") {
@@ -115,8 +77,6 @@ export const ChatProvider = ({ children }) => {
      RECEIVE NEW MESSAGE (SOCKET)
      ===================================== */
   useEffect(() => {
-    if (!socketRef.current) return;
-
     const handleNewMessage = (message) => {
       setMessages((prev) => {
         if (prev.some((m) => m._id === message._id)) return prev;
@@ -124,10 +84,10 @@ export const ChatProvider = ({ children }) => {
       });
     };
 
-    socketRef.current.on("new-message", handleNewMessage);
+    socket.on("new-message", handleNewMessage);
 
     return () => {
-      socketRef.current?.off("new-message", handleNewMessage);
+      socket.off("new-message", handleNewMessage);
     };
   }, []);
 
@@ -135,11 +95,10 @@ export const ChatProvider = ({ children }) => {
      SEND MESSAGE
      ===================================== */
   const sendMessage = (text) => {
-    if (!socketRef.current) return;
     if (!text?.trim()) return;
     if (!roomId || !user) return;
 
-    socketRef.current.emit("send-message", {
+    socket.emit("send-message", {
       roomId,
       content: text,
     });

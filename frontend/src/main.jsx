@@ -9,7 +9,8 @@ import { RoomProvider } from "./context/RoomContext";
 import { TaskProvider } from "./context/TaskContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UserProvider } from "./context/UserContext";
-import { ChatProvider } from "./context/ChatContext"; // ✅ ADD THIS
+
+import { NotificationProvider } from "./context/NotificationContext";
 
 // Apply theme before first paint
 const savedTheme = localStorage.getItem("theme");
@@ -22,15 +23,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <RoomProvider>
-            <UserProvider>
+         <UserProvider>
+            <RoomProvider>
               <TaskProvider>
-                <App />
+                <NotificationProvider>
+                  <App/> 
+                </NotificationProvider>
               </TaskProvider>
-            </UserProvider>
-          </RoomProvider>
-        </ThemeProvider>
-      </AuthProvider>
+           </RoomProvider>
+         </UserProvider>
+       </ThemeProvider>
+    </AuthProvider>
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode> 
 );

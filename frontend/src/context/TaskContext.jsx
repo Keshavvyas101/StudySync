@@ -29,6 +29,53 @@ export const TaskProvider = ({ children }) => {
       prev.map((t) => (t._id === taskId ? res.data.task : t))
     );
   };
+const toggleTaskStatus = async (taskId) => {
+  let nextStatus = null;
+
+  setTasks((prev) =>
+    prev.map((task) => {
+      if (task._id !== taskId) return task;
+
+      nextStatus =
+        task.status === "completed" ? "todo" : "completed";
+
+      return {
+        ...task,
+        status: nextStatus,
+        completedAt:
+          nextStatus === "completed"
+            ? new Date().toISOString()
+            : null,
+      };
+    })
+  );
+
+  try {
+    await api.patch(`/tasks/${taskId}/status`);
+  } catch (error) {
+    console.error("Failed to toggle task status", error);
+
+    // rollback using known nextStatus
+    setTasks((prev) =>
+      prev.map((task) =>
+        task._id === taskId
+          ? {
+              ...task,
+              status:
+                nextStatus === "completed" ? "todo" : "completed",
+              completedAt:
+                nextStatus === "completed"
+                  ? null
+                  : new Date().toISOString(),
+            }
+          : task
+      )
+    );
+  }
+};
+
+
+
 
   const deleteTask = async (taskId) => {
     await api.delete(`/tasks/${taskId}`);
@@ -44,6 +91,7 @@ export const TaskProvider = ({ children }) => {
         createTask,
         updateTask,
         deleteTask,
+        toggleTaskStatus,
       }}
     >
       {children}

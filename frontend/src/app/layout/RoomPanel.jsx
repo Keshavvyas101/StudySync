@@ -1,17 +1,29 @@
-import { useRooms } from "../../context/RoomContext";
 import { useState } from "react";
 import api from "../../services/api";
+import { useRooms } from "../../context/RoomContext";
 
 const RoomPanel = () => {
-  const {
-    rooms,
-    activeRoom,
-    setActiveRoom,
-    loading,
-    createRoom,
-    fetchRooms,
-    members,
-  } = useRooms();
+  // ✅ SAFE ACCESS
+  let rooms = [];
+  let activeRoom = null;
+  let setActiveRoom = () => {};
+  let loading = false;
+  let createRoom = () => {};
+  let fetchRooms = async () => {};
+  let members = [];
+
+  try {
+    const ctx = useRooms();
+    rooms = ctx.rooms || [];
+    activeRoom = ctx.activeRoom;
+    setActiveRoom = ctx.setActiveRoom;
+    loading = ctx.loading;
+    createRoom = ctx.createRoom;
+    fetchRooms = ctx.fetchRooms;
+    members = ctx.members || [];
+  } catch {
+    // context not ready (login/register)
+  }
 
   const [inviteCode, setInviteCode] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -88,7 +100,9 @@ const RoomPanel = () => {
           </h3>
 
           <div className="flex items-center gap-2">
-            <div className="flex-1 px-3 py-2 rounded-md bg-slate-100 dark:bg-[#0f0f14] text-sm font-mono text-slate-800 dark:text-gray-200 border border-slate-300 dark:border-white/10">
+            <div className="flex-1 px-3 py-2 rounded-md bg-slate-100 dark:bg-[#0f0f14]
+                            text-sm font-mono text-slate-800 dark:text-gray-200
+                            border border-slate-300 dark:border-white/10">
               {activeRoom.inviteCode}
             </div>
 
@@ -98,7 +112,8 @@ const RoomPanel = () => {
                   activeRoom.inviteCode
                 )
               }
-              className="px-3 py-2 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-3 py-2 text-sm rounded-md
+                         bg-blue-600 hover:bg-blue-700 text-white"
             >
               Copy
             </button>
@@ -117,14 +132,16 @@ const RoomPanel = () => {
           placeholder="Enter invite code"
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
-          className="w-full px-3 py-2 mb-2 rounded-md bg-slate-100 dark:bg-[#0f0f14]
+          className="w-full px-3 py-2 mb-2 rounded-md
+                     bg-slate-100 dark:bg-[#0f0f14]
                      text-sm border border-slate-300 dark:border-white/10
                      text-slate-800 dark:text-gray-200"
         />
 
         <button
           onClick={handleJoinRoom}
-          className="w-full py-2 rounded-md bg-green-600 hover:bg-green-700 text-white"
+          className="w-full py-2 rounded-md
+                     bg-green-600 hover:bg-green-700 text-white"
         >
           Join Room
         </button>
@@ -147,7 +164,8 @@ const RoomPanel = () => {
             {members.map((m) => (
               <li
                 key={m._id}
-                className="text-sm flex items-center gap-2 text-slate-700 dark:text-gray-200"
+                className="text-sm flex items-center gap-2
+                           text-slate-700 dark:text-gray-200"
               >
                 <span className="text-yellow-400">★</span>
                 {m.name}

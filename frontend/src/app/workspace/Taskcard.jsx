@@ -5,18 +5,18 @@ import { useTasks } from "../../context/TaskContext";
 
 const getPriorityBorder = (priority) => {
   if (priority === "high")
-    return "border-l-4 border-l-red-500/80 dark:border-l-red-400";
+    return "border-l-4 border-l-red-500 dark:border-l-red-400";
   if (priority === "medium")
-    return "border-l-4 border-l-amber-400/80 dark:border-l-amber-300";
-  return "border-l-4 border-l-emerald-500/80 dark:border-l-emerald-400";
+    return "border-l-4 border-l-yellow-400 dark:border-l-yellow-300";
+  return "border-l-4 border-l-green-500 dark:border-l-green-400";
 };
 
 const getPriorityBadge = (priority) => {
   if (priority === "high")
-    return "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+    return "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
   if (priority === "medium")
-    return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
-  return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+    return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
+  return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300";
 };
 
 const getDeadlineStatus = (deadline) => {
@@ -33,27 +33,28 @@ const getDeadlineStatus = (deadline) => {
     return {
       label: "Overdue",
       className:
-        "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+        "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
     };
 
   if (days <= 2)
     return {
       label: "Due Soon",
       className:
-        "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
     };
 
   return {
     label: "On Track",
     className:
-      "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+      "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
   };
 };
 
 /* ===================== COMPONENT ===================== */
 
 const TaskCard = ({ task, members = [] }) => {
-  const { updateTask, deleteTask } = useTasks();
+  // ✅ FIX: toggleTaskStatus added
+  const { updateTask, deleteTask, toggleTaskStatus } = useTasks();
 
   const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -85,31 +86,29 @@ const TaskCard = ({ task, members = [] }) => {
   return (
     <div
       className={`
-        rounded-xl p-4 transition-all
-        bg-white dark:bg-slate-900
-        border border-slate-200 dark:border-slate-800
+        rounded-xl p-4 transition
+        bg-white dark:bg-slate-800
+        border border-gray-200 dark:border-slate-700
         shadow-sm hover:shadow-md
         ${getPriorityBorder(task.priority)}
       `}
     >
-      {/* ===== HEADER (COLLAPSED VIEW) ===== */}
+      {/* HEADER */}
       <div
         className="flex justify-between items-start gap-3 cursor-pointer"
         onClick={() => !isEditing && setExpanded((p) => !p)}
       >
-        <div className="space-y-1">
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-            {task.title}
-          </h3>
+        <div>
+          <h3 className="font-semibold text-base">{task.title}</h3>
 
           {task.assignedTo && (
-            <p className="text-xs text-indigo-600 dark:text-indigo-400">
+            <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">
               Assigned to {task.assignedTo.name}
             </p>
           )}
 
           <span
-            className={`inline-block text-xs px-2 py-0.5 rounded-full ${getPriorityBadge(
+            className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${getPriorityBadge(
               task.priority
             )}`}
           >
@@ -126,10 +125,10 @@ const TaskCard = ({ task, members = [] }) => {
         )}
       </div>
 
-      {/* ===== EXPANDED VIEW ===== */}
+      {/* EXPANDED */}
       {expanded && (
         <div
-          className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300"
+          className="mt-4 space-y-3 text-sm text-gray-600 dark:text-slate-300"
           onClick={(e) => e.stopPropagation()}
         >
           {!isEditing && (
@@ -137,43 +136,26 @@ const TaskCard = ({ task, members = [] }) => {
               {task.description && <p>{task.description}</p>}
 
               {task.deadline && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  📅 Due {new Date(task.deadline).toDateString()}
-                </p>
+                <p>📅 Due {new Date(task.deadline).toDateString()}</p>
               )}
 
-              <p>
-                🔥 Priority:{" "}
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs ${getPriorityBadge(
-                    task.priority
-                  )}`}
-                >
-                  {task.priority}
-                </span>
-              </p>
-
+              {/* STATUS */}
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={task.status === "completed"}
                   onChange={(e) => {
                     e.stopPropagation();
-                    updateTask(task._id, {
-                      status:
-                        task.status === "completed"
-                          ? "todo"
-                          : "completed",
-                    });
+                    toggleTaskStatus(task._id); // ✅ correct
                   }}
-                  className="h-4 w-4 accent-emerald-600 cursor-pointer"
+                  className="h-4 w-4 accent-green-600 cursor-pointer"
                 />
 
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full ${
                     task.status === "completed"
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                      : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
                   }`}
                 >
                   {task.status === "completed" ? "Completed" : "Active"}
@@ -181,31 +163,59 @@ const TaskCard = ({ task, members = [] }) => {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button className="px-3 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }}
+                  className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+                >
                   Edit
                 </button>
 
-                <button className="px-3 py-1 text-xs rounded bg-rose-600 text-white hover:bg-rose-700">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteTask(task._id);
+                  }}
+                  className="px-3 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                >
                   Delete
                 </button>
               </div>
             </>
           )}
 
-          {/* ===== EDIT MODE ===== */}
           {isEditing && (
             <div className="space-y-3">
-              <input className="w-full px-3 py-2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
-              <textarea className="w-full px-3 py-2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
-              <input type="date" className="w-full px-3 py-2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
-              <select className="w-full px-3 py-2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
-              <select className="w-full px-3 py-2 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+              <input
+                value={form.title}
+                onChange={(e) =>
+                  setForm({ ...form, title: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+              />
+
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                rows={3}
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+              />
 
               <div className="flex gap-2">
-                <button className="px-3 py-1 text-xs rounded bg-emerald-600 text-white">
+                <button
+                  onClick={handleSave}
+                  className="px-3 py-1 text-xs rounded bg-green-600 text-white"
+                >
                   Save
                 </button>
-                <button className="px-3 py-1 text-xs rounded bg-slate-500 text-white">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1 text-xs rounded bg-gray-500 text-white"
+                >
                   Cancel
                 </button>
               </div>

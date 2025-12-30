@@ -5,14 +5,23 @@ import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { fetchMe } = useAuth();
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  // ✅ SAFE ACCESS (prevents crash when provider missing)
+  const auth = useAuth?.();
+  const fetchMe = auth?.fetchMe;
+
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +30,12 @@ const Login = () => {
     try {
       setLoading(true);
       await api.post("/auth/login", formData);
-      await fetchMe();
+
+      // ✅ Only call if provider exists
+      if (fetchMe) {
+        await fetchMe();
+      }
+
       navigate("/app");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
@@ -36,7 +50,6 @@ const Login = () => {
         onSubmit={handleSubmit}
         className="w-full max-w-md bg-[#15151c] border border-white/10 rounded-2xl p-8 shadow-2xl"
       >
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white">StudySync</h1>
           <p className="text-sm text-gray-400 mt-1">
@@ -44,14 +57,12 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-4 text-sm text-red-400 text-center">
             {error}
           </div>
         )}
 
-        {/* Email */}
         <div className="mb-4">
           <label className="block text-sm text-gray-400 mb-1">
             Email
@@ -59,16 +70,14 @@ const Login = () => {
           <input
             name="email"
             type="email"
-            placeholder="you@example.com"
-            onChange={handleChange}
             required
+            onChange={handleChange}
             className="w-full px-3 py-2 rounded-lg bg-[#0f0f14] border border-white/10
                        text-white placeholder-gray-500
                        focus:outline-none focus:ring-2 focus:ring-purple-600"
           />
         </div>
 
-        {/* Password */}
         <div className="mb-6">
           <label className="block text-sm text-gray-400 mb-1">
             Password
@@ -76,16 +85,14 @@ const Login = () => {
           <input
             name="password"
             type="password"
-            placeholder="••••••••"
-            onChange={handleChange}
             required
+            onChange={handleChange}
             className="w-full px-3 py-2 rounded-lg bg-[#0f0f14] border border-white/10
                        text-white placeholder-gray-500
                        focus:outline-none focus:ring-2 focus:ring-purple-600"
           />
         </div>
 
-        {/* Button */}
         <button
           type="submit"
           disabled={loading}
@@ -96,7 +103,6 @@ const Login = () => {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        {/* Footer */}
         <p className="text-sm text-gray-400 mt-6 text-center">
           Don’t have an account?{" "}
           <Link

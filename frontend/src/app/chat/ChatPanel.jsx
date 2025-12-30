@@ -17,7 +17,7 @@ const ChatPanel = () => {
   }
 
   return (
-    <div className="chat-panel flex flex-col h-full rounded-xl
+    <div className="chat-panel flex flex-col min-h-0 rounded-xl
                     bg-white dark:bg-slate-900
                     border border-slate-200 dark:border-slate-800
                     shadow-sm">
@@ -32,7 +32,7 @@ const ChatPanel = () => {
       </div>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-auto no-scrollbar ">
         <MessageList
           messages={messages}
           loading={loading}

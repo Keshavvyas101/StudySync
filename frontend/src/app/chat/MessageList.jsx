@@ -22,7 +22,7 @@ const MessageList = ({ messages, loading }) => {
 
   return (
     <div
-      className="chat-messages flex-1 overflow-y-auto px-4 py-3 space-y-3
+      className="chat-messages flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3
                  bg-white dark:bg-slate-900"
     >
       {messages.map((msg) => (

@@ -1,48 +1,47 @@
 import Task from "../models/Task.js";
 import Room from "../models/Room.js";
+import { createNotification } from "../services/notificationService.js";
 
 /**
- * @desc    Create a task inside a room
- * @route   POST /api/tasks/:roomId
- * @access  Private (Room members only)
+ * CREATE TASK
  */
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { title, description, deadline, assignedTo , priority} = req.body;
+    const { title, description, deadline, assignedTo, priority } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Task title is required" });
     }
 
-    // Check room exists
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    // Check user is room member
-    const isMember = room.members.some(
-      (memberId) => memberId.toString() === req.user._id.toString()
-    );
+    const userId = req.user._id.toString();
 
+    // ✅ must be room member
+    const isMember = room.members.some(
+      (id) => id.toString() === userId
+    );
     if (!isMember) {
-      return res.status(403).json({ message: "Not authorized to create task in this room" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    // If assignedTo exists, check assigned user is also a room member
+    // ✅ validate assignee
     if (assignedTo) {
-      const isAssignedUserMember = room.members.some(
-        (memberId) => memberId.toString() === assignedTo
+      const valid = room.members.some(
+        (id) => id.toString() === assignedTo
       );
-
-      if (!isAssignedUserMember) {
+      if (!valid) {
         return res
           .status(400)
-          .json({ message: "Assigned user is not a member of this room" });
+          .json({ message: "Assigned user not in room" });
       }
     }
 
+    // ✅ create task
     const task = await Task.create({
       title,
       description,
@@ -53,136 +52,143 @@ export const createTask = async (req, res) => {
       priority: priority || "medium",
     });
 
-    res.status(201).json({
-      message: "Task created successfully",
-      task,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to create task", error });
+    /* 🔔 NOTIFICATIONS (SAFE + MULTI USER) */
+    const recipients = new Set();
+
+    // notify room owner (if creator is not owner)
+    if (room.owner.toString() !== userId) {
+      recipients.add(room.owner.toString());
+    }
+
+    // notify assignee (if exists & not creator)
+    if (assignedTo && assignedTo !== userId) {
+      recipients.add(assignedTo);
+    }
+
+    for (const uid of recipients) {
+      await createNotification({
+        user: uid,
+        type: "task_assigned",
+        message: `New task created: "${task.title}"`,
+        room: roomId,
+        task: task._id,
+      });
+    }
+
+    res.status(201).json({ task });
+  } catch (err) {
+    console.error("Create task failed:", err);
+    res.status(500).json({ message: "Failed to create task" });
   }
 };
 
+
 /**
- * @desc    Get all tasks of a room
- * @route   GET /api/tasks/:roomId
- * @access  Private (Room members only)
+ * GET TASKS BY ROOM
  */
 export const getTasksByRoom = async (req, res) => {
   try {
-    const { roomId } = req.params;
+    const room = await Room.findById(req.params.roomId);
+    if (!room) return res.status(404).json({ message: "Room not found" });
 
-    // Check room exists
-    const room = await Room.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-
-    // Check membership
     const isMember = room.members.some(
-      (memberId) => memberId.toString() === req.user._id.toString()
+      (id) => id.toString() === req.user._id.toString()
     );
+    if (!isMember) return res.status(403).json({ message: "Not authorized" });
 
-    if (!isMember) {
-      return res.status(403).json({ message: "Not authorized to view tasks of this room" });
-    }
-
-    const tasks = await Task.find({ room: roomId })
+    const tasks = await Task.find({ room: room._id })
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 });
 
     res.status(200).json({ tasks });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch tasks", error });
+  } catch {
+    res.status(500).json({ message: "Failed to fetch tasks" });
   }
 };
 
 /**
- * @desc    Update task (status / assignment / details)
- * @route   PATCH /api/tasks/:taskId
- * @access  Private (Task creator or Room owner)
+ * UPDATE TASK (NO STATUS TOGGLE HERE)
  */
-
-
 export const updateTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, status, deadline, assignedTo, priority } = req.body;
+    const { title, description, deadline, assignedTo, priority } = req.body;
 
     const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
     const room = await Room.findById(task.room);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-
     const userId = req.user._id.toString();
-    const isAssigned = task.assignedTo?.toString() === userId;
-    const isOwner = room.owner.toString() === userId;
-    
-    if (!isAssigned && !isOwner) {
-      return res.status(403).json({ message: "Not authorized to update this task" });
+
+    const canEdit =
+      task.assignedTo?.toString() === userId ||
+      room.owner.toString() === userId;
+
+    if (!canEdit) {
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    // ✅ ASSIGN / UNASSIGN FIX
-
-    
-    if(isOwner){
-    if (assignedTo === null) {
-      task.assignedTo = null;
-    } else if (assignedTo) {
-      const isMember = room.members.some(
-        (memberId) => memberId.toString() === assignedTo
-      );
-    
-      if (!isMember) {
-        return res
-          .status(400)
-          .json({ message: "Assigned user is not a member of this room" });
+    if (room.owner.toString() === userId && assignedTo !== undefined) {
+      if (assignedTo === null) {
+        task.assignedTo = null;
+      } else {
+        const valid = room.members.some(
+          (id) => id.toString() === assignedTo
+        );
+        if (!valid) {
+          return res.status(400).json({ message: "Invalid assignee" });
+        }
+        task.assignedTo = assignedTo;
       }
-
-      task.assignedTo = assignedTo;
-    }
-  }
-
-    if (status) {
-      const allowedStatus = ["todo", "in-progress", "completed"];
-      if (!allowedStatus.includes(status)) {
-        return res.status(400).json({ message: "Invalid task status" });
-      }
-      task.status = status;
     }
 
     if (title) task.title = title;
     if (description) task.description = description;
     if (deadline) task.deadline = deadline;
+    if (priority) task.priority = priority;
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
+    const populated = await Task.findById(task._id)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email");
 
-    res.status(200).json({
-      message: "Task updated successfully",
-      task: populatedTask,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to update task", error });
+    res.status(200).json({ task: populated });
+  } catch {
+    res.status(500).json({ message: "Failed to update task" });
   }
 };
 
-
-
 /**
- * @desc    Delete a task
- * @route   DELETE /api/tasks/:taskId
- * @access  Private (Task creator or Room owner)
+ * DELETE TASK
  */
 export const deleteTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.taskId);
+    if (!task) return res.status(404).json({ message: "Task not found" });
+
+    const room = await Room.findById(task.room);
+    const userId = req.user._id.toString();
+
+    if (
+      task.createdBy.toString() !== userId &&
+      room.owner.toString() !== userId
+    ) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    await task.deleteOne();
+    res.status(200).json({ message: "Task deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete task" });
+  }
+};
+
+/**
+ * TOGGLE TASK STATUS (ONLY PLACE FOR COMPLETION)
+ */
+export const toggleTaskStatus = async (req, res) => {
   try {
     const { taskId } = req.params;
 
@@ -192,43 +198,69 @@ export const deleteTask = async (req, res) => {
     }
 
     const room = await Room.findById(task.room);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-
     const userId = req.user._id.toString();
 
-    const isCreator = task.createdBy.toString() === userId;
-    const isOwner = room.owner.toString() === userId;
+    const canToggle =
+      task.assignedTo?.toString() === userId ||
+      room.owner.toString() === userId;
 
-    if (!isCreator && !isOwner) {
-      return res.status(403).json({ message: "Not authorized to delete this task" });
+    if (!canToggle) {
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    await task.deleteOne();
+    const wasCompleted = task.status === "completed";
 
-    res.status(200).json({
-      message: "Task deleted successfully",
+    // toggle
+    task.status = wasCompleted ? "todo" : "completed";
+    task.completedAt =
+      task.status === "completed" ? new Date() : null;
+
+    await task.save();
+
+    // 🔔 SAFE notification (CANNOT crash API)
+    try {
+      if (!wasCompleted && task.status === "completed") {
+       if (!wasCompleted && task.status === "completed") {
+  const completedBy = userId;
+
+  const recipients = new Set();
+
+  // task creator
+  if (task.createdBy) {
+    recipients.add(task.createdBy.toString());
+  }
+
+  // room owner
+  if (room.owner) {
+    recipients.add(room.owner.toString());
+  }
+
+  // ❌ do not notify the user who completed the task
+  recipients.delete(completedBy);
+
+  if (recipients.size === 0) {
+    console.warn("⚠️ No recipients for completion notification");
+  }
+
+  for (const uid of recipients) {
+    await createNotification({
+      user: uid,
+      type: "task_completed",
+      message: `Task "${task.title}" was completed`,
+      room: task.room,
+      task: task._id,
     });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to delete task", error });
   }
-};
+}
 
-// Toggle only status
-export const toggleTaskStatus = async (req, res) => {
-  const task = req.task;
+      }
+    } catch (err) {
+      console.error("❌ Notification failed:", err.message);
+    }
 
-  task.status =
-    task.status === "completed" ? "todo" : "completed";
-
-  if (task.status === "completed") {
-    task.completedAt = new Date();
-  } else {
-    task.completedAt = null;
+    return res.status(200).json({ task });
+  } catch (err) {
+    console.error("Toggle task error:", err);
+    return res.status(500).json({ message: "Failed to toggle status" });
   }
-
-  await task.save();
-
-  res.status(200).json({ task });
 };
