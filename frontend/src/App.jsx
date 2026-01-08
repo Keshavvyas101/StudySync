@@ -1,19 +1,27 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+
+import PublicLayout from "./app/layout/PublicLayout";
+import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import NotFound from "./pages/NotFound";
+
 import WorkspaceLayout from "./app/layout/WorkspaceLayout";
 import ProtectedRoute from "./components/Protected_Route";
 
-function App() {
+const App = () => {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      {/* PUBLIC AREA */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
 
-      {/* Protected */}
+      {/* PROTECTED APP */}
       <Route
-        path="/app"
+        path="/app/*"
         element={
           <ProtectedRoute>
             <WorkspaceLayout />
@@ -21,10 +29,9 @@ function App() {
         }
       />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
-}
+};
 
 export default App;

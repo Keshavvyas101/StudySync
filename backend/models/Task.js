@@ -18,7 +18,7 @@ const taskSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["todo", "in-progress", "completed"],
+      enum: ["todo", "completed"],
       default: "todo",
     },
 
@@ -42,17 +42,22 @@ const taskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    priority: {
-  type: String,
-  enum: ["low", "medium", "high"],
-  default: "medium",
-},
 
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
+    },
+
+    /* 🔔 DUE SOON FLAG (NEW) */
+    dueSoonNotified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
-  },
-  
+  }
 );
 
 const Task = mongoose.model("Task", taskSchema);

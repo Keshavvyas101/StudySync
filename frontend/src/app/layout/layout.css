@@ -2,7 +2,7 @@
    ROOT
    ================================ */
 .app-root {
-  height: 100vh;
+  /* height: 100vh; */
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -40,9 +40,10 @@
   flex: 1;
   display: grid;
   grid-template-columns: 260px 1fr 300px;
-  overflow: hidden;
+  overflow: hidden;   /* 🔒 lock dashboard scroll */
   min-height: 0;
 }
+
 
 .dark .app-body {
   background: #0f0f14;

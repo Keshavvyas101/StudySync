@@ -6,7 +6,15 @@ import "../layout/layout.css";
 
 const ChatPanel = () => {
   const { activeRoom } = useRooms();
-  const { messages, loading } = useChat();
+
+  // ✅ extract pagination-related values
+  const {
+    messages,
+    loading,
+    loadOlderMessages,
+    hasMore,
+    isLoadingOlder,
+  } = useChat();
 
   if (!activeRoom) {
     return (
@@ -17,32 +25,40 @@ const ChatPanel = () => {
   }
 
   return (
-    <div className="chat-panel flex flex-col min-h-0 rounded-xl
-                    bg-white dark:bg-slate-900
-                    border border-slate-200 dark:border-slate-800
-                    shadow-sm">
-
+    <div
+      className="chat-panel flex flex-col min-h-0 rounded-xl
+                 bg-white dark:bg-slate-900
+                 border border-slate-200 dark:border-slate-800
+                 shadow-sm"
+    >
       {/* HEADER */}
-      <div className="chat-header px-4 py-3
-                      border-b border-slate-200 dark:border-slate-800
-                      font-semibold text-slate-900 dark:text-slate-100
-                      bg-slate-50 dark:bg-slate-950
-                      rounded-t-xl">
+      <div
+        className="chat-header px-4 py-3
+                   border-b border-slate-200 dark:border-slate-800
+                   font-semibold text-slate-900 dark:text-slate-100
+                   bg-slate-50 dark:bg-slate-950
+                   rounded-t-xl"
+      >
         💬 {activeRoom.name}
       </div>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-auto no-scrollbar ">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <MessageList
           messages={messages}
           loading={loading}
+          loadOlderMessages={loadOlderMessages}
+          hasMore={hasMore}
+          isLoadingOlder={isLoadingOlder}
         />
       </div>
 
       {/* INPUT */}
-      <div className="border-t border-slate-200 dark:border-slate-800
-                      bg-slate-50 dark:bg-slate-950
-                      rounded-b-xl">
+      <div
+        className="border-t border-slate-200 dark:border-slate-800
+                   bg-slate-50 dark:bg-slate-950
+                   rounded-b-xl"
+      >
         <MessageInput />
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { registerUser, loginUser } from "../services/authService.js";
 import generateToken from "../utils/generateToken.js";
-
+import { checkDueSoonTasksForUser } from "../services/dueSoonService.js";
 /**
  * @desc Register new user
  * @route POST /api/auth/register
@@ -10,16 +10,24 @@ export const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        message: "All fields are required",
+      });
     }
 
-    const user = await registerUser({ name, email, password });
+    const lowerEmail = email.toLowerCase();
+
+    const user = await registerUser({
+      name,
+      email: lowerEmail,
+      password,
+    });
 
     const token = generateToken(user._id);
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,
+      secure: false, // set true in production with HTTPS
       sameSite: "Lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -33,7 +41,9 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      message: error.message,
+    });
   }
 };
 
@@ -46,7 +56,10 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password required" });
+      
+      return res
+        .status(400)
+        .json({ message: "Email and password required" });
     }
 
     const user = await loginUser({ email, password });
@@ -60,6 +73,9 @@ export const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+
+    
+    checkDueSoonTasksForUser(user._id).catch(console.error);
     res.status(200).json({
       message: "Login successful",
       user: {

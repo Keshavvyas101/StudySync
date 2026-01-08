@@ -14,30 +14,50 @@ const MessageInput = () => {
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2
-                 bg-white dark:bg-slate-900
-                 border-t border-slate-200 dark:border-slate-800"
+      className="
+        flex items-center gap-3
+        px-4 py-3
+        bg-white dark:bg-slate-950
+        border-t border-slate-200 dark:border-slate-800
+        shadow-[0_-1px_4px_rgba(0,0,0,0.06)]
+      "
     >
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        placeholder="Type a message..."
-        className="flex-1 px-4 py-2 rounded-full
-                   bg-slate-100 dark:bg-slate-800
-                   text-slate-900 dark:text-slate-100
-                   placeholder-slate-400 dark:placeholder-slate-500
-                   outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+      {/* INPUT WRAPPER */}
+      <div className="flex-1 relative">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Type a message…"
+          className="
+            w-full px-5 py-3 pr-12
+            rounded-full
+            bg-slate-100 dark:bg-slate-800
+            text-slate-900 dark:text-slate-100
+            placeholder-slate-400 dark:placeholder-slate-500
+            outline-none
+            focus:ring-2 focus:ring-indigo-500
+            transition
+          "
+        />
+      </div>
 
+      {/* SEND BUTTON */}
       <button
         onClick={handleSend}
-        className="px-4 py-2 rounded-full
-                   bg-indigo-600 hover:bg-indigo-700
-                   text-white text-sm font-medium
-                   transition"
+        disabled={!text.trim()}
+        className="
+          h-11 w-11
+          flex items-center justify-center
+          rounded-full
+          bg-indigo-900 hover:bg-indigo-400
+          text-white
+          transition
+          disabled:opacity-40 disabled:cursor-not-allowed
+        "
+        title="Send"
       >
-        Send
+        ➤
       </button>
     </div>
   );

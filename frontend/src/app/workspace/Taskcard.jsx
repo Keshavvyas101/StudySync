@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTasks } from "../../context/TaskContext";
 
 /* ===================== HELPERS ===================== */
@@ -53,8 +53,15 @@ const getDeadlineStatus = (deadline) => {
 /* ===================== COMPONENT ===================== */
 
 const TaskCard = ({ task, members = [] }) => {
-  // ✅ FIX: toggleTaskStatus added
-  const { updateTask, deleteTask, toggleTaskStatus } = useTasks();
+  const {
+    updateTask,
+    deleteTask,
+    toggleTaskStatus,
+    focusedTaskId,
+    clearFocusedTask,
+  } = useTasks();
+
+  const cardRef = useRef(null);
 
   const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -69,6 +76,23 @@ const TaskCard = ({ task, members = [] }) => {
 
   const deadlineStatus = getDeadlineStatus(task.deadline);
 
+  const isFocused = focusedTaskId === task._id;
+
+  /* ===================== AUTO EXPAND + SCROLL ===================== */
+  useEffect(() => {
+    if (isFocused) {
+      setExpanded(true);
+
+      // 🔥 scroll safely
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+    }
+  }, [isFocused]);
+
   const handleSave = () => {
     if (form.title.trim().length < 3) return;
 
@@ -81,16 +105,19 @@ const TaskCard = ({ task, members = [] }) => {
     });
 
     setIsEditing(false);
+    clearFocusedTask();
   };
 
   return (
     <div
+      ref={cardRef}
       className={`
         rounded-xl p-4 transition
         bg-white dark:bg-slate-800
         border border-gray-200 dark:border-slate-700
         shadow-sm hover:shadow-md
         ${getPriorityBorder(task.priority)}
+        ${isFocused ? "ring-2 ring-indigo-500" : ""}
       `}
     >
       {/* HEADER */}
@@ -139,14 +166,13 @@ const TaskCard = ({ task, members = [] }) => {
                 <p>📅 Due {new Date(task.deadline).toDateString()}</p>
               )}
 
-              {/* STATUS */}
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={task.status === "completed"}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleTaskStatus(task._id); // ✅ correct
+                  onChange={() => {
+                    toggleTaskStatus(task._id);
+                    clearFocusedTask();
                   }}
                   className="h-4 w-4 accent-green-600 cursor-pointer"
                 />
@@ -158,26 +184,22 @@ const TaskCard = ({ task, members = [] }) => {
                       : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
                   }`}
                 >
-                  {task.status === "completed" ? "Completed" : "Active"}
+                  {task.status === "completed"
+                    ? "Completed"
+                    : "Active"}
                 </span>
               </div>
 
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsEditing(true);
-                  }}
+                  onClick={() => setIsEditing(true)}
                   className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
                 >
                   Edit
                 </button>
 
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteTask(task._id);
-                  }}
+                  onClick={() => deleteTask(task._id)}
                   className="px-3 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
                 >
                   Delete
@@ -205,16 +227,52 @@ const TaskCard = ({ task, members = [] }) => {
                 className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
               />
 
-              <div className="flex gap-2">
+              <input
+                type="date"
+                value={form.deadline}
+                onChange={(e) =>
+                  setForm({ ...form, deadline: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+              />
+
+              <select
+                value={form.priority}
+                onChange={(e) =>
+                  setForm({ ...form, priority: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+
+              <select
+                value={form.assignedTo}
+                onChange={(e) =>
+                  setForm({ ...form, assignedTo: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded bg-slate-100 dark:bg-slate-700 border"
+              >
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m._id} value={m._id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleSave}
-                  className="px-3 py-1 text-xs rounded bg-green-600 text-white"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
                 >
                   Save
                 </button>
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1 text-xs rounded bg-gray-500 text-white"
+                  className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg"
                 >
                   Cancel
                 </button>

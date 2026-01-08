@@ -7,6 +7,7 @@ import {
   getMyRooms,
   leaveRoom,
   removeMember,
+  deleteRoom
 } from "../controllers/roomController.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import {
@@ -26,6 +27,8 @@ router.get("/:roomId/members", protect, requireRoomMember, (req, res) => {
     members: req.room.members,
   });
 });
+router.delete("/:roomId/delete",protect,deleteRoom);
+
 
 // member only
 router.post(

@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "admin"],
       default: "student",
     },
+
+    // 🖼️ Profile avatar (Cloudinary URL)
+    avatar: {
+      type: String,
+      default: null, // fallback → letter avatar
+    },
   },
   { timestamps: true }
 );
