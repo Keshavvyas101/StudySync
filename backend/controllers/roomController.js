@@ -4,10 +4,11 @@ import { createNotification } from "../services/notificationService.js";
 import Message from "../models/Message.js";
 import Room from "../models/Room.js";
 import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 
-/**
- * Create room
- */
+/* ============================
+   CREATE ROOM
+============================ */
 export const createRoom = async (req, res) => {
   try {
     const { name, description } = req.body;
@@ -33,15 +34,16 @@ export const createRoom = async (req, res) => {
       room,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       message: "Failed to create room",
     });
   }
 };
 
-/**
- * Join room via invite code
- */
+/* ============================
+   JOIN ROOM
+============================ */
 export const joinRoom = async (req, res) => {
   try {
     const { inviteCode } = req.body;
@@ -52,10 +54,8 @@ export const joinRoom = async (req, res) => {
       });
     }
 
-    const room = await Room.findOne({ inviteCode }).populate(
-      "owner",
-      "name"
-    );
+    const room = await Room.findOne({ inviteCode })
+      .populate("owner", "name avatar");
 
     if (!room) {
       return res.status(404).json({
@@ -63,24 +63,20 @@ export const joinRoom = async (req, res) => {
       });
     }
 
-    const isMember = room.members.some(
+    const alreadyMember = room.members.some(
       (id) => id.toString() === req.user._id.toString()
     );
 
-    if (isMember) {
+    if (alreadyMember) {
       return res.status(400).json({
         message: "Already a member of this room",
       });
     }
 
-    /* ✅ ADD MEMBER */
     room.members.push(req.user._id);
     await room.save();
 
-    /* 🔔 NOTIFY ROOM OWNER (IF NOT SELF) */
-    if (
-      room.owner._id.toString() !== req.user._id.toString()
-    ) {
+    if (room.owner._id.toString() !== req.user._id.toString()) {
       await createNotification({
         user: room.owner._id,
         type: "member_joined",
@@ -94,34 +90,34 @@ export const joinRoom = async (req, res) => {
       room,
     });
   } catch (error) {
-    console.error(error);
+    console.error("JOIN ROOM ERROR:", error);
     res.status(500).json({
       message: "Failed to join room",
     });
   }
 };
 
-
-/**
- * Get rooms of logged-in user
- */
+/* ============================
+   GET MY ROOMS
+============================ */
 export const getMyRooms = async (req, res) => {
   try {
     const rooms = await Room.find({
       members: req.user._id,
-    }).populate("owner", "name email");
+    }).populate("owner", "name email avatar");
 
     res.status(200).json({ rooms });
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       message: "Failed to fetch rooms",
     });
   }
 };
 
-/**
- * Leave room (member only)
- */
+/* ============================
+   LEAVE ROOM
+============================ */
 export const leaveRoom = async (req, res) => {
   try {
     const { roomId } = req.body;
@@ -132,28 +128,25 @@ export const leaveRoom = async (req, res) => {
 
     const room = await Room.findById(roomId).populate(
       "owner",
-      "name"
+      "name avatar"
     );
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    // 🚫 Owner cannot leave
     if (room.owner._id.toString() === req.user._id.toString()) {
       return res.status(400).json({
         message: "Owner cannot leave the room",
       });
     }
 
-    // 🧹 Remove member
     room.members = room.members.filter(
       (id) => id.toString() !== req.user._id.toString()
     );
 
     await room.save();
 
-    /* 🔔 NOTIFY ROOM OWNER */
     await createNotification({
       user: room.owner._id,
       type: "member_left",
@@ -161,26 +154,41 @@ export const leaveRoom = async (req, res) => {
       room: room._id,
     });
 
-    res.status(200).json({ message: "Left room successfully" });
+    res.status(200).json({
+      message: "Left room successfully",
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to leave room" });
+    res.status(500).json({
+      message: "Failed to leave room",
+    });
   }
 };
 
-
-
-/**
- * Remove member (owner only)
- */
+/* ============================
+   REMOVE MEMBER (OWNER ONLY)
+============================ */
 export const removeMember = async (req, res) => {
   try {
-    const { memberId } = req.body;
-    const room = req.room;
+    const { roomId, memberId } = req.body;
 
-    if (!memberId) {
+    if (!roomId || !memberId) {
       return res.status(400).json({
-        message: "Member ID required",
+        message: "Room ID and Member ID are required",
+      });
+    }
+
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        message: "Room not found",
+      });
+    }
+
+    if (room.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Only room owner can remove members",
       });
     }
 
@@ -191,40 +199,63 @@ export const removeMember = async (req, res) => {
     }
 
     room.members = room.members.filter(
-      (id) => id.toString() !== memberId
+      (m) => m.toString() !== memberId
     );
 
     await room.save();
 
     res.status(200).json({
       message: "Member removed successfully",
-      room,
     });
   } catch (error) {
+    console.error("REMOVE MEMBER ERROR:", error);
     res.status(500).json({
       message: "Failed to remove member",
     });
   }
 };
 
-/**
- * Get room members
- */
+/* ============================
+   GET ROOM MEMBERS
+============================ */
 export const getRoomMembers = async (req, res) => {
-  res.status(200).json({
-    members: req.room.members,
-    owner: req.room.owner,
-  });
-};
-// import Room from "../models/Room.js";
+  try {
+    const { roomId } = req.params;
 
+    const room = await Room.findById(roomId)
+      .populate("members", "name email avatar")
+      .populate("owner", "name email avatar");
+
+    if (!room) {
+      return res.status(404).json({
+        message: "Room not found",
+      });
+    }
+
+    res.status(200).json({
+      members: room.members,
+      owner: room.owner,
+    });
+  } catch (error) {
+    console.error("GET MEMBERS ERROR:", error);
+    res.status(500).json({
+      message: "Failed to fetch room members",
+    });
+  }
+};
+
+/* ============================
+   GET ROOM MESSAGES
+============================ */
+/* ============================
+   GET ROOM MESSAGES (with search support)
+============================ */
 export const getRoomMessages = async (req, res) => {
   try {
     res.set("Cache-Control", "no-store");
 
     const { roomId } = req.params;
-    const { before, limit = 20 } = req.query;
-    const userId = req.user._id;
+    const { before, limit = 20, search } = req.query;
 
     const room = await Room.findById(roomId);
     if (!room) {
@@ -232,34 +263,47 @@ export const getRoomMessages = async (req, res) => {
     }
 
     const isMember = room.members.some(
-      (m) => m.toString() === userId.toString()
+      (m) => m.toString() === req.user._id.toString()
     );
+
     if (!isMember) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
     const query = { room: roomId };
 
-    // cursor condition
+    // Pagination (older messages)
     if (before) {
       query.createdAt = { $lt: new Date(before) };
     }
 
-    // fetch newest first, then reverse for UI
+    // ✅ NEW: Full message search
+    if (search && search.trim()) {
+      query.$text = { $search: search.trim() };
+    }
+
     const messages = await Message.find(query)
-      .populate("sender", "name")
-      .sort({ createdAt: -1 })
+      .populate("sender", "name avatar")
+      .sort(
+        search
+          ? { score: { $meta: "textScore" } } // relevance when searching
+          : { createdAt: -1 }                 // normal chat order
+      )
       .limit(Number(limit));
 
-    return res.status(200).json({
-      messages: messages.reverse(), // oldest → newest for UI
+    res.status(200).json({
+      messages: messages.reverse(),
     });
   } catch (err) {
-    return res.status(500).json({ message: "Server error" });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 
+/* ============================
+   DELETE ROOM
+============================ */
 export const deleteRoom = async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -269,14 +313,12 @@ export const deleteRoom = async (req, res) => {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    // 🔒 Owner-only
     if (room.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         message: "Only room owner can delete the room",
       });
     }
 
-    // 🧹 Cleanup
     await Promise.all([
       Task.deleteMany({ room: roomId }),
       Message.deleteMany({ room: roomId }),
@@ -285,8 +327,148 @@ export const deleteRoom = async (req, res) => {
 
     await room.deleteOne();
 
-    res.status(200).json({ message: "Room deleted successfully" });
+    res.status(200).json({
+      message: "Room deleted successfully",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete room" });
+    console.error(err);
+    res.status(500).json({
+      message: "Failed to delete room",
+    });
+  }
+};
+
+/* ============================
+   UPDATE ROOM AVATAR (OWNER ONLY)
+============================ */
+export const updateRoomAvatar = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Image file required" });
+    }
+
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Only room owner can update avatar",
+      });
+    }
+
+    if (room.avatar?.publicId) {
+      await cloudinary.uploader.destroy(room.avatar.publicId);
+    }
+
+    const uploadResult = await cloudinary.uploader.upload(
+      `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+      { folder: "studysync/rooms" }
+    );
+
+    room.avatar = {
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+    };
+
+    await room.save();
+
+    res.status(200).json({
+      message: "Room avatar updated",
+      room,
+    });
+  } catch (err) {
+    console.error("ROOM AVATAR ERROR:", err);
+    res.status(500).json({
+      message: "Failed to update room avatar",
+    });
+  }
+};
+
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.isDeleted) {
+      return res.status(400).json({ message: "Message already deleted" });
+    }
+
+    const room = await Room.findById(message.room);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const isSender =
+      message.sender.toString() === userId.toString();
+
+    const isOwner =
+      room.owner.toString() === userId.toString();
+
+    if (!isSender && !isOwner) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    message.isDeleted = true;
+    message.deletedAt = new Date();
+    message.content = "This message was deleted";
+
+    await message.save();
+
+    return res.status(200).json({
+      message: "Message deleted",
+      deletedMessage: message,
+    });
+  } catch (err) {
+    console.error("DELETE MESSAGE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.user._id;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: "Content required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.isDeleted) {
+      return res.status(400).json({ message: "Cannot edit deleted message" });
+    }
+
+    if (message.sender.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    message.content = content.trim();
+    message.editedAt = new Date();
+
+    await message.save();
+
+    res.status(200).json({
+      message: "Message updated",
+      updatedMessage: message,
+    });
+  } catch (err) {
+    console.error("EDIT MESSAGE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

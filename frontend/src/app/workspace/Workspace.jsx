@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRooms } from "../../context/RoomContext";
 import { useTasks } from "../../context/TaskContext";
 import TaskCard from "./Taskcard";
-import "../layout/layout.css";
+import Avatar from "../../components/common/Avatar";
+import { useUI } from "../../context/UIContext";
+import AnalyticsPanel from "../../components/analytics/AnalyticsPanel";
+
+const FILTERS = ["all", "active", "completed", "high", "medium", "low"];
 
 const Workspace = () => {
   const { activeRoom, members } = useRooms();
@@ -15,25 +19,54 @@ const Workspace = () => {
     createTask,
   } = useTasks();
 
-  const [filter, setFilter] = useState("all");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    deadline: "",
-    assignedTo: "",
-    priority: "medium",
-  });
+  const { workspaceMode } = useUI();
 
-  /* ===============================
-     FETCH TASKS ON ROOM CHANGE
-     =============================== */
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("date");
+  const [assignedToFilter, setAssignedToFilter] = useState("all");
+
   useEffect(() => {
-    if (activeRoom?._id) {
-      fetchTasks(activeRoom._id);
-    }
+    if (activeRoom?._id) fetchTasks(activeRoom._id);
   }, [activeRoom]);
 
+  /* ---------------- FILTERING LOGIC ---------------- */
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter((task) => {
+        if (filter === "active") return task.status !== "completed";
+        if (filter === "completed") return task.status === "completed";
+        if (["high", "medium", "low"].includes(filter))
+          return task.priority === filter;
+        return true;
+      })
+      .filter((task) => {
+        if (assignedToFilter === "unassigned") return !task.assignedTo;
+        if (assignedToFilter === "all") return true;
+        return task.assignedTo?._id === assignedToFilter;
+      })
+      .filter((task) => {
+        if (!search.trim()) return true;
+        return task.title.toLowerCase().includes(search.toLowerCase());
+      })
+      .sort((a, b) => {
+        if (sort === "date") return new Date(b.createdAt) - new Date(a.createdAt);
+        if (sort === "title") return a.title.localeCompare(b.title);
+        if (sort === "priority") {
+          const order = { high: 3, medium: 2, low: 1 };
+          return order[b.priority] - order[a.priority];
+        }
+        if (sort === "deadline") {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        }
+        return 0;
+      });
+  }, [tasks, filter, search, sort, assignedToFilter]);
+
+  /* ---------------- EMPTY ROOM ---------------- */
   if (!activeRoom) {
     return (
       <div className="workspace flex items-center justify-center text-slate-400 dark:text-slate-500">
@@ -42,204 +75,129 @@ const Workspace = () => {
     );
   }
 
-  /* ===============================
-     CREATE TASK
-     =============================== */
-  const handleAddTask = () => {
-    if (form.title.trim().length < 3) return;
-
-    createTask(activeRoom._id, {
-      title: form.title,
-      description: form.description,
-      deadline: form.deadline || null,
-      assignedTo: form.assignedTo || null,
-      priority: form.priority,
-    });
-
-    setForm({
-      title: "",
-      description: "",
-      deadline: "",
-      assignedTo: "",
-      priority: "medium",
-    });
-    setShowForm(false);
-  };
-
-  /* ===============================
-     FILTER TASKS
-     =============================== */
-  const filteredTasks = tasks.filter((t) => {
-    if (filter === "completed") return t.status === "completed";
-    if (filter === "active") return t.status !== "completed";
-    return true;
-  });
-
   return (
-    <div className="workspace w-full h-full flex flex-col">
-      {/* ================= STICKY HEADER ================= */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 px-6 pt-6 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-            {activeRoom.name}
-          </h2>
+   <div className="workspace w-full flex flex-col relative bg-slate-50 dark:bg-slate-950">
 
-          <div className="flex gap-2">
-            {["all", "active", "completed"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 rounded-full text-sm transition ${
-                  filter === f
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {workspaceMode === "tasks" && (
+        <>
+          {/* ================= HEADER ================= */}
+          <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+            <div className="px-6 pt-6 pb-4 space-y-4">
 
-      {/* ================= SCROLLABLE CONTENT ================= */}
-      <div className="flex-1 px-6 py-6 overflow-y-auto">
-        {loading && (
-          <p className="text-slate-400 dark:text-slate-500">
-            Loading tasks…
-          </p>
-        )}
+              {/* Room title */}
+              <div className="flex items-center gap-3">
+                <Avatar
+                  name={activeRoom.name}
+                  src={activeRoom.avatar?.url}
+                  size={36}
+                />
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  {activeRoom.name}
+                </h2>
+              </div>
 
-        {!loading && filteredTasks.length === 0 && (
-          <div className="text-center py-20 text-slate-400 dark:text-slate-500">
-            <p className="text-lg">No tasks yet</p>
-            <p className="text-sm mt-1">
-              Add your first task to start studying 🚀
-            </p>
-          </div>
-        )}
+              {/* Search + controls */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input
+                  placeholder="Search tasks..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
 
-        {/* ================= TASK LIST ================= */}
-        <div className="space-y-4">
-          {filteredTasks.map((task) => (
-            <div
-              key={task._id}
-              id={`task-${task._id}`} // 👈 IMPORTANT (for future notification scroll)
-            >
-              <TaskCard task={task} members={members} />
+                <select
+                  value={assignedToFilter}
+                  onChange={(e) => setAssignedToFilter(e.target.value)}
+                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                >
+                  <option value="all">All Members</option>
+                  <option value="unassigned">Unassigned</option>
+                  {members.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                >
+                  <option value="date">Newest First</option>
+                  <option value="priority">Priority</option>
+                  <option value="title">Alphabetical</option>
+                  <option value="deadline">Deadline</option>
+                </select>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition
+                      ${
+                        filter === f
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      }`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* ================= LOAD MORE ================= */}
-        {hasMore && !loading && (
-          <button
-            onClick={() => loadMoreTasks(activeRoom._id)}
-            className="mt-6 w-full py-2 rounded-lg
-                       bg-slate-100 dark:bg-slate-800
-                       text-slate-700 dark:text-slate-300
-                       hover:bg-slate-200 dark:hover:bg-slate-700"
-          >
-            Load more tasks
-          </button>
-        )}
+          {/* ================= CONTENT ================= */}
+         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 pb-28">
 
-        {/* ================= ADD TASK CTA ================= */}
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-10 w-full py-3 rounded-xl
-                       bg-indigo-600 hover:bg-indigo-700
-                       text-white font-medium shadow-sm"
-          >
-            + Add New Task
-          </button>
-        )}
 
-        {/* ================= ADD TASK FORM ================= */}
-        {showForm && (
-          <div className="mt-6 p-5 rounded-xl
-                          border border-slate-200 dark:border-slate-800
-                          bg-white dark:bg-slate-900
-                          space-y-3 shadow-sm">
-            <input
-              placeholder="Task title"
-              value={form.title}
-              onChange={(e) =>
-                setForm({ ...form, title: e.target.value })
-              }
-              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
-                         border border-slate-200 dark:border-slate-700"
-            />
+            {loading && (
+              <div className="text-slate-400 text-sm">Loading tasks…</div>
+            )}
 
-            <textarea
-              placeholder="Description"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
-                         border border-slate-200 dark:border-slate-700"
-            />
+            {!loading && filteredTasks.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24 text-center text-slate-400">
+                <div className="text-lg font-medium">No tasks found</div>
+                <div className="text-sm">Try changing filters or create one</div>
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={(e) =>
-                  setForm({ ...form, deadline: e.target.value })
-                }
-                className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
-                           border border-slate-200 dark:border-slate-700"
-              />
-
-              <select
-                value={form.priority}
-                onChange={(e) =>
-                  setForm({ ...form, priority: e.target.value })
-                }
-                className="px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
-                           border border-slate-200 dark:border-slate-700"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-
-            <select
-              value={form.assignedTo}
-              onChange={(e) =>
-                setForm({ ...form, assignedTo: e.target.value })
-              }
-              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800
-                         border border-slate-200 dark:border-slate-700"
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m._id} value={m._id}>
-                  {m.name}
-                </option>
+            {/* Task grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {filteredTasks.map((task) => (
+                <TaskCard key={task._id} task={task} members={members} />
               ))}
-            </select>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleAddTask}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
-              >
-                Save Task
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg"
-              >
-                Cancel
-              </button>
             </div>
+
+            {hasMore && !loading && (
+              <button
+                onClick={() => loadMoreTasks(activeRoom._id)}
+                className="mt-10 w-full py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                Load more
+              </button>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* ================= FLOATING ACTION ================= */}
+          <button
+            onClick={() => alert("Hook this to your create modal")}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2
+              px-6 py-2 rounded-xl
+              bg-indigo-600 hover:bg-indigo-700
+              text-white font-medium
+              shadow-xl transition"
+          >
+            + New Task
+          </button>
+        </>
+      )}
+
+      {workspaceMode === "analytics" && <AnalyticsPanel />}
     </div>
   );
 };

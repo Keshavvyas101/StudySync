@@ -50,13 +50,7 @@ export const NotificationProvider = ({ children }) => {
      LOAD OLDER
      =============================== */
   const loadOlderNotifications = async () => {
-    if (
-      isLoadingOlder ||
-      !hasMore ||
-      notifications.length === 0
-    ) {
-      return;
-    }
+    if (isLoadingOlder || !hasMore || notifications.length === 0) return;
 
     setIsLoadingOlder(true);
 
@@ -89,10 +83,9 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /* ===============================
-     DELETE NOTIFICATION
+     DELETE
      =============================== */
   const deleteNotification = async (id) => {
-    // 🔥 Optimistic UI
     setNotifications((prev) =>
       prev.filter((n) => n._id !== id)
     );
@@ -108,7 +101,7 @@ export const NotificationProvider = ({ children }) => {
      SOCKET HANDLING
      =============================== */
   useEffect(() => {
-    if (!user) return;
+    if (!user?._id) return;
 
     const userId = user._id;
 
@@ -117,6 +110,8 @@ export const NotificationProvider = ({ children }) => {
     };
 
     const handleNewNotification = (notification) => {
+      if (!notification) return;
+
       const notifUserId =
         typeof notification.user === "object"
           ? notification.user._id
@@ -132,22 +127,14 @@ export const NotificationProvider = ({ children }) => {
       });
     };
 
-    const handleDeletedNotification = (id) => {
-      setNotifications((prev) =>
-        prev.filter((n) => n._id !== id)
-      );
-    };
-
     joinNotifications();
 
     socket.on("connect", joinNotifications);
     socket.on("notification:new", handleNewNotification);
-    socket.on("notification:deleted", handleDeletedNotification);
 
     return () => {
       socket.off("connect", joinNotifications);
       socket.off("notification:new", handleNewNotification);
-      socket.off("notification:deleted", handleDeletedNotification);
     };
   }, [user]);
 
@@ -185,6 +172,36 @@ export const NotificationProvider = ({ children }) => {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const handleNotificationClick = (
+    notification,
+    rooms,
+    setActiveRoom,
+    openTask
+  ) => {
+    try {
+      if (!notification) return;
+
+      if (!notification.read) {
+        markAsRead(notification._id);
+      }
+
+      if (notification.room && Array.isArray(rooms)) {
+        const targetRoom = rooms.find(
+          (r) => r._id === notification.room
+        );
+        if (targetRoom && typeof setActiveRoom === "function") {
+          setActiveRoom(targetRoom);
+        }
+      }
+
+      if (notification.task && typeof openTask === "function") {
+        openTask(notification.task);
+      }
+    } catch (err) {
+      console.error("Notification click handled safely:", err);
+    }
+  };
+
   return (
     <NotificationContext.Provider
       value={{
@@ -196,6 +213,7 @@ export const NotificationProvider = ({ children }) => {
         markAsRead,
         markAllAsRead,
         deleteNotification,
+        handleNotificationClick,
       }}
     >
       {children}

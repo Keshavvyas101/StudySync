@@ -35,9 +35,21 @@ const roomSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+
+    // 🆕 ROOM AVATAR (same structure as User avatar)
+    avatar: {
+      url: {
+        type: String,
+        default: null,
+      },
+      publicId: {
+        type: String,
+        default: null,
+      },
+    },
   },
   {
-    timestamps: true, // adds createdAt & updatedAt
+    timestamps: true,
   }
 );
 

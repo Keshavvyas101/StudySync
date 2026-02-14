@@ -7,23 +7,33 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
+    },
+
+    // 🧍 Who triggered the event (optional but powerful)
+    actor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
 
     // 🔖 Type of notification
     type: {
       type: String,
-      enum: [ "task_assigned",
-  "task_created",
-  "due_soon",
-  "task_completed",
-  "member_left",
-  "member_joined",
-   "task_updated"
-  ],
+      enum: [
+        "task_assigned",
+        "task_created",
+        "task_updated",
+        "task_completed",
+        "due_soon",
+        "member_joined",
+        "member_left",
+      ],
       required: true,
+      index: true,
     },
 
-    // 📝 Human-readable message
+    // 📝 Human-readable message (generated centrally)
     message: {
       type: String,
       required: true,
@@ -33,31 +43,37 @@ const notificationSchema = new mongoose.Schema(
     room: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Room",
+      default: null,
     },
 
     // ✅ Related task (optional)
     task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
+      default: null,
     },
 
-    // 🧠 CONTEXT (NEW, SAFE)
+    // 🧠 Flexible metadata (for AI + analytics later)
     meta: {
-      assignedTo: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     // 👀 Read status
     read: {
       type: Boolean,
       default: false,
+      index: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-const Notification = mongoose.model("Notification", notificationSchema);
+const Notification = mongoose.model(
+  "Notification",
+  notificationSchema
+);
 
 export default Notification;

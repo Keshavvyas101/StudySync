@@ -1,47 +1,43 @@
+// controllers/taskController.js
+
 import Task from "../models/Task.js";
 import Room from "../models/Room.js";
 import { createNotification } from "../services/notificationService.js";
+import { logActivity } from "../services/activityService.js";
 
-/**
- * CREATE TASK
- */
+
+import {
+  populateTask,
+  canManageTask,
+  canToggleTask,
+  getTaskRecipients,
+} from "./taskHelper.js";
+
+/* ===============================
+   CREATE TASK
+================================ */
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
     const { title, description, deadline, assignedTo, priority } = req.body;
 
-    if (!title) {
+    if (!title?.trim()) {
       return res.status(400).json({ message: "Task title is required" });
     }
 
     const room = await Room.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+    if (!room) return res.status(404).json({ message: "Room not found" });
 
     const userId = req.user._id.toString();
 
-    // ✅ must be room member
-    const isMember = room.members.some(
-      (id) => id.toString() === userId
-    );
-    if (!isMember) {
+    if (!room.members.some((m) => m.toString() === userId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // ✅ validate assignee
-    if (assignedTo) {
-      const valid = room.members.some(
-        (id) => id.toString() === assignedTo
-      );
-      if (!valid) {
-        return res
-          .status(400)
-          .json({ message: "Assigned user not in room" });
-      }
+    if (assignedTo && !room.members.some((m) => m.toString() === assignedTo)) {
+      return res.status(400).json({ message: "Assigned user not in room" });
     }
 
-    // ✅ create task
     const task = await Task.create({
       title,
       description,
@@ -51,38 +47,36 @@ export const createTask = async (req, res) => {
       createdBy: req.user._id,
       priority: priority || "medium",
     });
+    // 📘 Activity log
+await logActivity(req.user._id, roomId, "task_created", {
+  taskId: task._id,
+  title: task.title,
+});
 
-    /* 🔔 NOTIFICATIONS (SEMANTIC + CORRECT) */
-    const notifications = [];
 
-    // 1️⃣ Notify ASSIGNEE (only if assigned & not creator)
+    // 🔔 Notify assignee
     if (assignedTo && assignedTo !== userId) {
-      notifications.push({
+      await createNotification({
         user: assignedTo,
+        actor: req.user._id,
         type: "task_assigned",
-        message: `You were assigned a task: "${task.title}"`,
         room: roomId,
         task: task._id,
+        meta: { taskTitle: task.title },
       });
     }
 
-    // 2️⃣ Notify ROOM OWNER (only if not creator AND not same as assignee)
+    // 🔔 Notify room owner
     const ownerId = room.owner.toString();
-    if (
-      ownerId !== userId &&
-      ownerId !== assignedTo
-    ) {
-      notifications.push({
+    if (ownerId !== userId && ownerId !== assignedTo) {
+      await createNotification({
         user: ownerId,
-        type: "task_assigned", // semantic via message
-        message: `New task created in your room: "${task.title}"`,
+        actor: req.user._id,
+        type: "task_created",
         room: roomId,
         task: task._id,
+        meta: { taskTitle: task.title },
       });
-    }
-
-    for (const n of notifications) {
-      await createNotification(n);
     }
 
     res.status(201).json({ task });
@@ -92,29 +86,26 @@ export const createTask = async (req, res) => {
   }
 };
 
-
-/**
- * GET TASKS BY ROOM
- * (UNCHANGED)
- */
+/* ===============================
+   GET TASKS
+================================ */
 export const getTasksByRoom = async (req, res) => {
   try {
     const room = await Room.findById(req.params.roomId);
-    if (!room)
-      return res.status(404).json({ message: "Room not found" });
+    if (!room) return res.status(404).json({ message: "Room not found" });
 
-    const isMember = room.members.some(
-      (id) => id.toString() === req.user._id.toString()
-    );
-    if (!isMember)
+    const userId = req.user._id.toString();
+    if (!room.members.some((m) => m.toString() === userId)) {
       return res.status(403).json({ message: "Not authorized" });
+    }
 
     const limit = Number(req.query.limit) || 10;
     const skip = Number(req.query.skip) || 0;
 
     const tasks = await Task.find({ room: room._id })
-      .populate("assignedTo", "name email")
-      .populate("createdBy", "name email")
+      .populate("assignedTo", "name email avatar")
+      .populate("createdBy", "name email avatar")
+      .populate("subtasks.assignedTo", "name email avatar")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -125,94 +116,41 @@ export const getTasksByRoom = async (req, res) => {
   }
 };
 
-
-/**
- * UPDATE TASK
- * (UNCHANGED)
- */
-/**
- * UPDATE TASK (WITH NOTIFICATIONS)
- */
+/* ===============================
+   UPDATE TASK
+================================ */
 export const updateTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, deadline, assignedTo, priority } = req.body;
+    const updates = req.body;
 
     const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
     const room = await Room.findById(task.room);
     const userId = req.user._id.toString();
 
-    // ✅ Permission: assignee OR room owner
-    const canEdit =
-      task.assignedTo?.toString() === userId ||
-      room.owner.toString() === userId;
-
-    if (!canEdit) {
+    if (!canManageTask(task, room, userId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    /* ===============================
-       APPLY UPDATES
-       =============================== */
-    if (room.owner.toString() === userId && assignedTo !== undefined) {
-      if (assignedTo === null) {
-        task.assignedTo = null;
-      } else {
-        const valid = room.members.some(
-          (id) => id.toString() === assignedTo
-        );
-        if (!valid) {
-          return res
-            .status(400)
-            .json({ message: "Invalid assignee" });
-        }
-        task.assignedTo = assignedTo;
-      }
-    }
-
-    if (title) task.title = title;
-    if (description) task.description = description;
-    if (deadline) task.deadline = deadline;
-    if (priority) task.priority = priority;
-
+    Object.assign(task, updates);
     await task.save();
 
-    /* ===============================
-       🔔 TASK UPDATED NOTIFICATIONS
-       =============================== */
-    const recipients = new Set();
-
-    // assignee
-    if (task.assignedTo) {
-      recipients.add(task.assignedTo.toString());
-    }
-
-    // room owner
-    if (room.owner) {
-      recipients.add(room.owner.toString());
-    }
-
-    // ❌ remove editor
-    recipients.delete(userId);
+    const recipients = getTaskRecipients(task, room, userId);
 
     for (const uid of recipients) {
       await createNotification({
         user: uid,
+        actor: req.user._id,
         type: "task_updated",
-        message: `Task "${task.title}" was updated`,
         room: task.room,
         task: task._id,
+        meta: { taskTitle: task.title },
       });
     }
 
-    const populated = await Task.findById(task._id)
-      .populate("assignedTo", "name email")
-      .populate("createdBy", "name email");
-
+    const populated = await populateTask(task._id);
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Update task failed:", err);
@@ -220,12 +158,9 @@ export const updateTask = async (req, res) => {
   }
 };
 
-
-
-/**
- * DELETE TASK
- * (UNCHANGED)
- */
+/* ===============================
+   DELETE TASK
+================================ */
 export const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.taskId);
@@ -234,10 +169,7 @@ export const deleteTask = async (req, res) => {
     const room = await Room.findById(task.room);
     const userId = req.user._id.toString();
 
-    if (
-      task.createdBy.toString() !== userId &&
-      room.owner.toString() !== userId
-    ) {
+    if (!canManageTask(task, room, userId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
@@ -248,72 +180,53 @@ export const deleteTask = async (req, res) => {
   }
 };
 
-
-/**
- * TOGGLE TASK STATUS
- * (only notification wording clarified)
- */
+/* ===============================
+   TOGGLE TASK STATUS
+================================ */
 export const toggleTaskStatus = async (req, res) => {
   try {
-    const { taskId } = req.params;
-
-    const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
+    const task = await Task.findById(req.params.taskId);
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
     const room = await Room.findById(task.room);
     const userId = req.user._id.toString();
 
-    const canToggle =
-      task.assignedTo?.toString() === userId ||
-      room.owner.toString() === userId;
-
-    if (!canToggle) {
+    if (!canToggleTask(task, room, userId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
     const wasCompleted = task.status === "completed";
 
     task.status = wasCompleted ? "todo" : "completed";
-    task.completedAt =
-      task.status === "completed" ? new Date() : null;
+    task.completedAt = task.status === "completed" ? new Date() : null;
 
     await task.save();
 
-    // 🔔 completion notification
-    try {
-      if (!wasCompleted && task.status === "completed") {
-        const completedBy = userId;
-        const recipients = new Set();
+    // 🔔 Notify only on transition to completed
+    if (!wasCompleted && task.status === "completed") {
+      // 📘 Activity log
+await logActivity(req.user._id, task.room, "task_completed", {
+  taskId: task._id,
+  title: task.title,
+});
 
-        if (task.createdBy) {
-          recipients.add(task.createdBy.toString());
-        }
+      const recipients = getTaskRecipients(task, room, userId);
 
-        if (room.owner) {
-          recipients.add(room.owner.toString());
-        }
-
-        recipients.delete(completedBy);
-
-        for (const uid of recipients) {
-          await createNotification({
-            user: uid,
-            type: "task_completed",
-            message: `Task "${task.title}" was completed`,
-            room: task.room,
-            task: task._id,
-          });
-        }
+      for (const uid of recipients) {
+        await createNotification({
+          user: uid,
+          actor: req.user._id,
+          type: "task_completed",
+          room: task.room,
+          task: task._id,
+          meta: { taskTitle: task.title },
+        });
       }
-    } catch (err) {
-      console.error("❌ Notification failed:", err.message);
     }
 
-    return res.status(200).json({ task });
+    res.status(200).json({ task });
   } catch (err) {
     console.error("Toggle task error:", err);
-    return res.status(500).json({ message: "Failed to toggle status" });
+    res.status(500).json({ message: "Failed to toggle status" });
   }
 };

@@ -29,10 +29,16 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    // 🖼️ Profile avatar (Cloudinary URL)
+    // 🆕 PROFILE AVATAR
     avatar: {
-      type: String,
-      default: null, // fallback → letter avatar
+      url: {
+        type: String,
+        default: null,
+      },
+      publicId: {
+        type: String,
+        default: null,
+      },
     },
   },
   { timestamps: true }

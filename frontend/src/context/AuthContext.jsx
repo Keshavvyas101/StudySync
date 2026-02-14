@@ -8,7 +8,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Fetch logged-in user (on app load)
+  /* ===============================
+     FETCH LOGGED-IN USER
+     =============================== */
   const fetchMe = async () => {
     try {
       const res = await api.get("/users/me");
@@ -25,24 +27,48 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, []);
 
-  // 🔐 SOCKET LIFECYCLE (LOCKED HERE)
+  /* ===============================
+     SOCKET LIFECYCLE (LOCKED)
+     =============================== */
   useEffect(() => {
     if (user) {
-      connectSocket(); // ✅ connect once when user exists
+      connectSocket();
     } else {
-      disconnectSocket(); // ✅ disconnect on logout / auth loss
+      disconnectSocket();
     }
   }, [user]);
 
-  // 🔹 LOGOUT
+  /* ===============================
+     LOGOUT
+     =============================== */
   const logout = async () => {
     try {
       await api.post("/auth/logout");
     } catch (err) {
       console.error("Logout API failed", err);
     } finally {
-      setUser(null); // triggers socket disconnect via effect
+      setUser(null);
     }
+  };
+
+  /* ===============================
+     🖼️ AVATAR UPDATE (NEW)
+     =============================== */
+  const updateUserAvatar = (avatar) => {
+    /**
+     * avatar shape expected:
+     * {
+     *   url: String,
+     *   publicId: String
+     * }
+     */
+    setUser((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        avatar,
+      };
+    });
   };
 
   const value = {
@@ -50,6 +76,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     fetchMe,
     logout,
+
+    // 👇 NEW (used later by profile upload UI)
+    updateUserAvatar,
   };
 
   return (

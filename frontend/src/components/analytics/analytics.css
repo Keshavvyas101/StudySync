@@ -1,0 +1,215 @@
+.analytics {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+/* ================= BASIC TEXT ================= */
+
+.analytics-muted {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.analytics-center {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+/* ================= TITLES ================= */
+
+.analytics-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.analytics-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 12px;
+}
+
+/* ================= CARDS ================= */
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.analytics-card {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analytics-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.analytics-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* ================= WEEK GRID (REPLACES BAR CHART) ================= */
+
+.analytics-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+
+.analytics-week-day {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analytics-week-count {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.analytics-week-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ================= ACHIEVEMENTS ================= */
+
+.analytics-list {
+  padding-left: 18px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.analytics-list li {
+  margin-bottom: 6px;
+}
+
+/* ================= USERS ================= */
+
+.analytics-users {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analytics-user {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.analytics-user-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #334155;
+}
+
+.analytics-bar {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.analytics-bar-fill {
+  height: 100%;
+  background: #6366f1;
+  transition: width 0.3s ease;
+}
+
+/* ================= FILTERS ================= */
+
+.analytics-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analytics-filter {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  cursor: pointer;
+}
+
+.analytics-filter.active {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
+/* ================= ADVANCED TOGGLE ================= */
+
+.analytics-toggle {
+  font-size: 14px;
+  color: #6366f1;
+  cursor: pointer;
+}
+
+.analytics-toggle:hover {
+  text-decoration: underline;
+}
+
+/* ================= DARK MODE ================= */
+
+.dark .analytics-title,
+.dark .analytics-value,
+.dark .analytics-week-count {
+  color: #f1f5f9;
+}
+
+.dark .analytics-subtitle,
+.dark .analytics-user-header {
+  color: #cbd5e1;
+}
+
+.dark .analytics-muted,
+.dark .analytics-label,
+.dark .analytics-week-label {
+  color: #94a3b8;
+}
+
+.dark .analytics-card,
+.dark .analytics-user,
+.dark .analytics-week-day {
+  background: #0f172a;
+  border-color: #1f2937;
+}
+
+.dark .analytics-bar {
+  background: #1f2937;
+}
+
+.dark .analytics-filter {
+  background: #1f2937;
+  border-color: #334155;
+  color: #cbd5e1;
+}

@@ -1,5 +1,15 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import api from "../services/api";
+import { createContext, useContext, useState } from "react";
+import {
+  fetchTasksApi,
+  createTaskApi,
+  updateTaskApi,
+  deleteTaskApi,
+  toggleTaskStatusApi,
+  addSubtaskApi,
+  toggleSubtaskApi,
+  updateSubtaskApi,
+  deleteSubtaskApi,
+} from "../services/taskService";
 
 const TaskContext = createContext();
 const PAGE_SIZE = 10;
@@ -10,141 +20,192 @@ export const TaskProvider = ({ children }) => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  // 🎯 NEW: focused task (from notifications)
-  const [focusedTaskId, setFocusedTaskId] = useState(null);
+  /* ======================
+     FETCH TASKS
+  ====================== */
 
-  /* ===============================
-     INITIAL FETCH
-     =============================== */
   const fetchTasks = async (roomId) => {
     if (!roomId) return;
+    setLoading(true);
+
     try {
-      setLoading(true);
+      const data = await fetchTasksApi(roomId, PAGE_SIZE, 0);
+      setTasks(data);
       setPage(0);
-      setHasMore(true);
-
-      const res = await api.get(
-        `/tasks/${roomId}?limit=${PAGE_SIZE}&skip=0`
-      );
-
-      const fetched = res.data.tasks || [];
-      setTasks(fetched);
-      setHasMore(fetched.length === PAGE_SIZE);
+      setHasMore(data.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      setTasks([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ===============================
-     LOAD MORE TASKS
-     =============================== */
   const loadMoreTasks = async (roomId) => {
     if (!roomId || !hasMore || loading) return;
 
-    try {
-      setLoading(true);
-      const nextPage = page + 1;
+    setLoading(true);
+    const nextPage = page + 1;
 
-      const res = await api.get(
-        `/tasks/${roomId}?limit=${PAGE_SIZE}&skip=${
-          nextPage * PAGE_SIZE
-        }`
+    try {
+      const data = await fetchTasksApi(
+        roomId,
+        PAGE_SIZE,
+        nextPage * PAGE_SIZE
       );
 
-      const fetched = res.data.tasks || [];
-
-      setTasks((prev) => [...prev, ...fetched]);
+      setTasks((prev) => [...prev, ...data]);
       setPage(nextPage);
-      setHasMore(fetched.length === PAGE_SIZE);
+      setHasMore(data.length === PAGE_SIZE);
+    } catch (error) {
+      console.error("Error loading more tasks:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ===============================
-     CRUD
-     =============================== */
-  const createTask = async (roomId, data) => {
-    const res = await api.post(`/tasks/${roomId}`, data);
-    setTasks((prev) => [res.data.task, ...prev]);
-  };
+  /* ======================
+     TASK CRUD
+  ====================== */
 
-  const updateTask = async (taskId, updates) => {
-    const res = await api.patch(`/tasks/${taskId}`, updates);
-    setTasks((prev) =>
-      prev.map((t) => (t._id === taskId ? res.data.task : t))
-    );
-  };
-
-  const toggleTaskStatus = async (taskId) => {
-    let nextStatus = null;
-
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task._id !== taskId) return task;
-
-        nextStatus =
-          task.status === "completed" ? "todo" : "completed";
-
-        return {
-          ...task,
-          status: nextStatus,
-          completedAt:
-            nextStatus === "completed"
-              ? new Date().toISOString()
-              : null,
-        };
-      })
-    );
-
+  const createTask = async (roomId, payload) => {
     try {
-      await api.patch(`/tasks/${taskId}/status`);
+      const newTask = await createTaskApi(roomId, payload);
+      setTasks((prev) => [newTask, ...prev]);
+      return newTask;
     } catch (error) {
+      console.error("Error creating task:", error);
+      throw error;
+    }
+  };
+
+  const updateTask = async (taskId, payload) => {
+    try {
+      const updated = await updateTaskApi(taskId, payload);
       setTasks((prev) =>
-        prev.map((task) =>
-          task._id === taskId
-            ? {
-                ...task,
-                status:
-                  nextStatus === "completed"
-                    ? "todo"
-                    : "completed",
-                completedAt:
-                  nextStatus === "completed"
-                    ? null
-                    : new Date().toISOString(),
-              }
-            : task
-        )
+        prev.map((t) => (t._id === updated._id ? updated : t))
       );
+      return updated;
+    } catch (error) {
+      console.error("Error updating task:", error);
+      throw error;
     }
   };
 
   const deleteTask = async (taskId) => {
-    await api.delete(`/tasks/${taskId}`);
-    setTasks((prev) => prev.filter((t) => t._id !== taskId));
-  };
-
-  /* ===============================
-     🎯 FOCUS TASK API
-     =============================== */
-  const focusTask = (taskId) => {
-    setFocusedTaskId(taskId);
-  };
-
-  const clearFocusedTask = () => {
-    setFocusedTaskId(null);
-  };
-
-  // 🧹 Auto-clear focus if task list changes and task no longer exists
-  useEffect(() => {
-    if (
-      focusedTaskId &&
-      !tasks.some((t) => t._id === focusedTaskId)
-    ) {
-      setFocusedTaskId(null);
+    try {
+      await deleteTaskApi(taskId);
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      throw error;
     }
-  }, [tasks, focusedTaskId]);
+  };
+
+  const toggleTaskStatus = async (taskId) => {
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t._id === taskId
+          ? {
+              ...t,
+              status: t.status === "completed" ? "todo" : "completed",
+            }
+          : t
+      )
+    );
+
+    try {
+      await toggleTaskStatusApi(taskId);
+    } catch (error) {
+      console.error("Error toggling task status:", error);
+      // Revert on error
+      setTasks((prev) =>
+        prev.map((t) =>
+          t._id === taskId
+            ? {
+                ...t,
+                status: t.status === "completed" ? "todo" : "completed",
+              }
+            : t
+        )
+      );
+      throw error;
+    }
+  };
+
+  /* ======================
+     SUBTASKS
+  ====================== */
+
+  const addSubtask = async (taskId, payload) => {
+    try {
+      const updated = await addSubtaskApi(taskId, payload);
+      setTasks((prev) =>
+        prev.map((t) => (t._id === updated._id ? updated : t))
+      );
+      return updated;
+    } catch (error) {
+      console.error("Error adding subtask:", error);
+      throw error;
+    }
+  };
+
+  const toggleSubtask = async (taskId, subtaskId) => {
+    try {
+      const updated = await toggleSubtaskApi(taskId, subtaskId);
+      setTasks((prev) =>
+        prev.map((t) => (t._id === updated._id ? updated : t))
+      );
+      return updated;
+    } catch (error) {
+      console.error("Error toggling subtask:", error);
+      throw error;
+    }
+  };
+
+  const updateSubtask = async (taskId, subtaskId, payload) => {
+    try {
+      const updated = await updateSubtaskApi(taskId, subtaskId, payload);
+      setTasks((prev) =>
+        prev.map((t) => (t._id === updated._id ? updated : t))
+      );
+      return updated;
+    } catch (error) {
+      console.error("Error updating subtask:", error);
+      throw error;
+    }
+  };
+
+  const deleteSubtask = async (taskId, subtaskId) => {
+    try {
+      const updated = await deleteSubtaskApi(taskId, subtaskId);
+      setTasks((prev) =>
+        prev.map((t) => (t._id === updated._id ? updated : t))
+      );
+      return updated;
+    } catch (error) {
+      console.error("Error deleting subtask:", error);
+      throw error;
+    }
+  };
+
+  /* ======================
+     HELPERS
+  ====================== */
+
+  const getTaskProgress = (task) => {
+    if (!task) return 0;
+    
+    const subtasks = task.subtasks || [];
+    if (subtasks.length === 0) {
+      return task.status === "completed" ? 100 : 0;
+    }
+
+    const done = subtasks.filter((s) => s.isCompleted).length;
+    return Math.round((done / subtasks.length) * 100);
+  };
 
   return (
     <TaskContext.Provider
@@ -152,15 +213,21 @@ export const TaskProvider = ({ children }) => {
         tasks,
         loading,
         hasMore,
-        focusedTaskId,      // ✅ exposed
+
         fetchTasks,
         loadMoreTasks,
+
         createTask,
         updateTask,
         deleteTask,
         toggleTaskStatus,
-        focusTask,           // ✅ exposed
-        clearFocusedTask,    // ✅ exposed
+
+        addSubtask,
+        toggleSubtask,
+        updateSubtask,
+        deleteSubtask,
+
+        getTaskProgress,
       }}
     >
       {children}
@@ -171,7 +238,7 @@ export const TaskProvider = ({ children }) => {
 export const useTasks = () => {
   const ctx = useContext(TaskContext);
   if (!ctx) {
-    throw new Error("useTasks must be used within TaskProvider");
+    throw new Error("useTasks must be used inside TaskProvider");
   }
   return ctx;
 };

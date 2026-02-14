@@ -1,226 +1,394 @@
-/* ================================
-   ROOT
-   ================================ */
+/* =======================
+   ROOT + TOPBAR
+======================= */
 .app-root {
-  /* height: 100vh; */
   display: flex;
   flex-direction: column;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #f8fafc;
   color: #0f172a;
 }
+.dark .app-root { background: #0f0f14; color: #e5e7eb; }
 
-.dark .app-root {
-  background: #0f0f14;
-  color: #e5e7eb;
-}
-
-/* ================================
-   TOPBAR
-   ================================ */
 .topbar {
   height: 60px;
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid #e2e8f0;
 }
+.dark .topbar { background: #232b38; border-bottom-color: rgba(255,255,255,.1); }
 
-.dark .topbar {
-  background: #111827;
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-/* ================================
-   MAIN BODY
-   ================================ */
+/* =======================
+   LAYOUT
+======================= */
 .app-body {
   flex: 1;
   display: grid;
   grid-template-columns: 260px 1fr 300px;
-  overflow: hidden;   /* 🔒 lock dashboard scroll */
+  overflow: hidden;
   min-height: 0;
 }
+.dark .app-body { background: #0f0f14; }
 
-
-.dark .app-body {
-  background: #0f0f14;
-}
-
-/* ================================
-   PANELS
-   ================================ */
-.room-panel,
-.workspace,
-.focus-panel {
+/* Panels */
+.room-panel, .workspace, .focus-panel {
   height: 100%;
   padding: 16px;
   overflow: hidden;
-  background: #ffffff;
+  background: #fff;
 }
 
-.dark .room-panel,
-.dark .workspace {
-  background: #232429;
-}
+.dark .workspace { background: #121929; }
+.dark .room-panel { background: #232b38; }
 
-.room-panel {
-  border-right: 1px solid #e2e8f0;
-}
-
-.dark .room-panel {
-  border-right-color: rgba(255, 255, 255, 0.1);
-}
+.room-panel { border-right: 1px solid #e2e8f0; }
+.dark .room-panel { border-right-color: rgba(255,255,255,.1); }
 
 .focus-panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
   position: relative;
   background: #f1f5f9;
   border-left: 1px solid #e2e8f0;
 }
-
 .dark .focus-panel {
   background: #111827;
-  border-left-color: rgba(255, 255, 255, 0.1);
+  border-left-color: rgba(255,255,255,.1);
 }
 
-/* ================================
-   WORKSPACE SCROLL
-   ================================ */
+/* =======================
+   SCROLL HELPERS
+======================= */
+.workspace,
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workspace::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .workspace {
   overflow-y: auto;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
-.workspace::-webkit-scrollbar {
-  width: 0;
+/* Custom Scrollbar for Message List */
+.message-list-container {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
-.workspace {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+.message-list-container::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* ================================
-   CHAT LAYOUT
-   ================================ */
-.chat-panel {
-  height: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+.message-list-container::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.chat-header {
-  font-weight: 600;
-  font-size: 14px;
+.message-list-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
-.chat-messages {
-  flex: 1;
-  min-height: 0;
-  padding: 12px;
-  
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+.message-list-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-.chat-messages::-webkit-scrollbar {
-  width: 0;
+.dark .message-list-container {
+  scrollbar-color: #475569 transparent;
 }
 
-.chat-messages {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+.dark .message-list-container::-webkit-scrollbar-thumb {
+  background: #475569;
 }
 
-/* ================================
-   CHAT BUBBLES
-   ================================ */
-.chat-message {
-  max-width: 70%;
-  display: flex;
-  flex-direction: column;
+.dark .message-list-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
-.chat-message.other {
-  align-self: flex-start;
-}
-
-.chat-message.own {
-  align-self: flex-end;
-  text-align: right;
-}
-
-.chat-bubble {
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.4;
-  background: #e5e7eb;
-  color: #0f172a;
-}
-
-.chat-message.own .chat-bubble {
-  background: #4f46e5;
-  color: #ffffff;
-}
-
-.dark .chat-message.other .chat-bubble {
-  background: #1f2937;
-  color: #e5e7eb;
-}
-
-/* ================================
-   CHAT META
-   ================================ */
-.chat-time {
-  margin-top: 4px;
-  font-size: 11px;
-  color: #94a3b8;
-}
-
-.dark .chat-time {
-  color: #64748b;
-}
-
-/* ================================
+/* =======================
    RESIZE HANDLE
-   ================================ */
+======================= */
 .resize-handle {
   position: absolute;
   inset: 0 auto 0 0;
   width: 6px;
   cursor: col-resize;
   z-index: 10;
+  transition: background 0.2s;
+}
+.resize-handle:hover { 
+  background: linear-gradient(to right, rgba(99, 102, 241, 0.1), transparent);
+}
+.dark .resize-handle:hover { 
+  background: linear-gradient(to right, rgba(129, 140, 248, 0.15), transparent);
 }
 
-.resize-handle:hover {
-  background: rgba(0, 0, 0, 0.05);
+/* =======================
+   FOCUS PANEL HEADER
+======================= */
+.focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dark .focus-header {
+  background: #111827;
+  border-bottom-color: rgba(255,255,255,.08);
 }
 
-.dark .resize-handle:hover {
-  background: rgba(255, 255, 255, 0.08);
+.focus-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f9;
 }
-/* Hide scrollbar but keep scroll */
-.no-scrollbar {
-  scrollbar-width: none;      /* Firefox */
-  -ms-overflow-style: none;   /* IE / Edge */
+.dark .focus-tabs { background: #1f2937; }
+
+.focus-tab {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 8px;
+  color: #64748b;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+.focus-tab:hover { 
+  color: #0f172a;
+  background: rgba(99, 102, 241, 0.05);
+}
+.dark .focus-tab:hover { 
+  color: #e5e7eb;
+  background: rgba(129, 140, 248, 0.1);
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+.focus-tab.active {
+  background: #fff;
+  color: #4f46e5;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.dark .focus-tab.active {
+  background: #111827;
+  color: #818cf8;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+
+.focus-close {
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #64748b;
+  transition: all 0.2s;
+}
+.focus-close:hover { 
+  background: #f1f5f9; 
+  color: #0f172a;
+}
+.dark .focus-close:hover { 
+  background: #1f2937; 
+  color: #e5e7eb;
+}
+
+.focus-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =======================
+   ANIMATIONS
+======================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.zoom-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* =======================
+   MESSAGE BUBBLE ANIMATIONS
+======================= */
+.message-bubble {
+  animation: slideUp 0.2s ease-out;
+}
+
+/* =======================
+   UTILITY CLASSES
+======================= */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-effect {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* =======================
+   LOADING STATES
+======================= */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #1e293b 25%,
+    #334155 50%,
+    #1e293b 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* =======================
+   RESPONSIVE
+======================= */
+@media (max-width: 768px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+  
+  .room-panel,
+  .focus-panel {
+    display: none;
+  }
+}
+
+/* =======================
+   FOCUS STATES
+======================= */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.dark button:focus-visible,
+.dark input:focus-visible,
+.dark textarea:focus-visible {
+  outline-color: #818cf8;
+}
+
+/* =======================
+   CUSTOM BADGE
+======================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.badge-primary {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.dark .badge-primary {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+/* =======================
+   TOOLTIP
+======================= */
+[title] {
+  position: relative;
+}
+
+/* =======================
+   SMOOTH TRANSITIONS
+======================= */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }

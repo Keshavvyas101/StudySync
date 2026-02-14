@@ -1,15 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Topbar from "./TopBar";
 import RoomPanel from "./RoomPanel";
 import FocusPanel from "./FocusPanel";
 import Workspace from "../workspace/Workspace";
+import { useUI } from "../../context/UIContext";
+
 import "./layout.css";
 
-const MIN_FOCUS_WIDTH = 240;
-const MAX_FOCUS_WIDTH = 420;
+const MIN_FOCUS_WIDTH = 280;
+const MAX_FOCUS_WIDTH = 3000;
+
+// Semantic defaults (product decisions)
+const NARROW_WIDTH = 340; // chat
+const WIDE_WIDTH = 620;   // task details
 
 const WorkspaceLayout = () => {
-  const [focusWidth, setFocusWidth] = useState(300);
+  const { isFocusOpen, focusSize } = useUI();
+
+  const [focusWidth, setFocusWidth] = useState(NARROW_WIDTH);
+
+  // When focusSize changes (chat <-> task), auto-adjust width
+  useEffect(() => {
+    if (!isFocusOpen) return;
+
+    if (focusSize === "wide") {
+      setFocusWidth(WIDE_WIDTH);
+    } else {
+      setFocusWidth(NARROW_WIDTH);
+    }
+  }, [focusSize, isFocusOpen]);
 
   const clampedFocusWidth = Math.min(
     MAX_FOCUS_WIDTH,
@@ -25,7 +44,10 @@ const WorkspaceLayout = () => {
       <div
         className="app-body flex-1 grid overflow-hidden"
         style={{
-          gridTemplateColumns: `260px minmax(0, 1fr) ${clampedFocusWidth}px`,
+          gridTemplateColumns: `260px minmax(0, 1fr) ${
+            isFocusOpen ? clampedFocusWidth : 0
+          }px`,
+          transition: "grid-template-columns 200ms ease",
         }}
       >
         {/* LEFT: ROOMS */}

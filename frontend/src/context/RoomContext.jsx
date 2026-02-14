@@ -24,7 +24,6 @@ export const RoomProvider = ({ children }) => {
 
       setRooms(roomList);
 
-      // ✅ DO NOT OVERRIDE ACTIVE ROOM IF IT STILL EXISTS
       setActiveRoom((prevActive) => {
         if (prevActive) {
           const stillExists = roomList.find(
@@ -78,31 +77,29 @@ export const RoomProvider = ({ children }) => {
 
   /* ================= LEAVE ROOM ================= */
   const leaveRoom = async (roomId) => {
-  try {
-    await api.post("/rooms/leave", { roomId });
+    try {
+      await api.post("/rooms/leave", { roomId });
 
-    setRooms((prevRooms) => {
-      const updatedRooms = prevRooms.filter(
-        (r) => r._id !== roomId
-      );
+      setRooms((prevRooms) => {
+        const updatedRooms = prevRooms.filter(
+          (r) => r._id !== roomId
+        );
 
-      const nextRoom = updatedRooms[0] || null;
+        const nextRoom = updatedRooms[0] || null;
+        setActiveRoom(nextRoom);
 
-      setActiveRoom(nextRoom);
+        if (nextRoom) {
+          localStorage.setItem("activeRoomId", nextRoom._id);
+        } else {
+          localStorage.removeItem("activeRoomId");
+        }
 
-      if (nextRoom) {
-        localStorage.setItem("activeRoomId", nextRoom._id);
-      } else {
-        localStorage.removeItem("activeRoomId");
-      }
-
-      return updatedRooms;
-    });
-  } catch (err) {
-    console.error("Failed to leave room", err);
-  }
-};
-
+        return updatedRooms;
+      });
+    } catch (err) {
+      console.error("Failed to leave room", err);
+    }
+  };
 
   /* ================= DELETE ROOM ================= */
   const deleteRoom = async (roomId) => {
@@ -127,6 +124,38 @@ export const RoomProvider = ({ children }) => {
       });
     } catch (err) {
       console.error("Failed to delete room", err);
+    }
+  };
+
+  /* ================= UPDATE ROOM AVATAR (NEW) ================= */
+  const updateRoomAvatar = async (roomId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const res = await api.patch(
+        `/rooms/${roomId}/avatar`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      const updatedRoom = res.data.room;
+
+      // Update rooms list
+      setRooms((prev) =>
+        prev.map((r) =>
+          r._id === roomId ? updatedRoom : r
+        )
+      );
+
+      // Update activeRoom if it's same room
+      setActiveRoom((prev) =>
+        prev?._id === roomId ? updatedRoom : prev
+      );
+    } catch (err) {
+      console.error("Failed to update room avatar", err);
     }
   };
 
@@ -165,6 +194,9 @@ export const RoomProvider = ({ children }) => {
         createRoom,
         deleteRoom,
         leaveRoom,
+
+        // 👇 new exposed method
+        updateRoomAvatar,
       }}
     >
       {children}

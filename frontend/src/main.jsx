@@ -9,6 +9,10 @@ import { RoomProvider } from "./context/RoomContext";
 import { TaskProvider } from "./context/TaskContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UserProvider } from "./context/UserContext";
+import { UIProvider } from "./context/UIContext";
+
+
+
 
 import { NotificationProvider } from "./context/NotificationContext";
 
@@ -27,7 +31,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <RoomProvider>
               <TaskProvider>
                 <NotificationProvider>
+                   <UIProvider>
                   <App/> 
+                  </UIProvider>
                 </NotificationProvider>
               </TaskProvider>
            </RoomProvider>

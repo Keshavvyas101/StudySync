@@ -1,0 +1,260 @@
+/* ================= CARD ================= */
+.task-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-card:hover {
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+.task-card.focused {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.6);
+}
+
+/* Dark */
+.dark .task-card {
+  background: #0f172a;
+  border-color: #1f2937;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.dark .task-card:hover {
+  box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+}
+
+/* ================= HEADER ================= */
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Title */
+.task-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0f172a;
+  margin: 0;
+}
+
+.dark .task-header h3 {
+  color: #e5e7eb;
+}
+
+/* ================= META ================= */
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.dark .task-meta {
+  color: #94a3b8;
+}
+
+.assignee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: larger;
+  font-style: bold;
+}
+
+/* ================= BADGES ================= */
+.priority-badge {
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.dark .priority-badge {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+/* Deadline labels */
+.deadline {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.deadline-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.deadline-soon {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.deadline-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* ================= ACTIONS ================= */
+.task-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-actions button {
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: #64748b;
+}
+
+.task-actions button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.dark .task-actions button:hover {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+/* ================= DROPDOWN ================= */
+.dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 140px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  z-index: 50;
+}
+
+.dropdown button {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  background: none;
+  font-size: 13px;
+}
+
+.dropdown button:hover {
+  background: #f1f5f9;
+}
+
+.dropdown .danger {
+  color: #dc2626;
+}
+
+.dark .dropdown {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dark .dropdown button:hover {
+  background: #1e293b;
+}
+
+/* ================= PROGRESS ================= */
+.progress-bar {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  transition: width 0.3s ease;
+}
+
+.dark .progress-bar {
+  background: #1f2937;
+}
+
+/* ================= BODY ================= */
+.task-body {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dark .task-body {
+  color: #cbd5e1;
+}
+
+/* ================= STATUS ================= */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* ================= FORM ================= */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-form input,
+.edit-form textarea,
+.edit-form select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+}
+
+.edit-form input:focus,
+.edit-form textarea:focus,
+.edit-form select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+
+.dark .edit-form input,
+.dark .edit-form textarea,
+.dark .edit-form select {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+/* ================= FORM ACTIONS ================= */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

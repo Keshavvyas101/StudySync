@@ -1,5 +1,39 @@
 import mongoose from "mongoose";
 
+const subtaskSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 200,
+    },
+
+    isCompleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+     assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+      deadline: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+    _id: true, // explicitly ensure each subtask has its own id
+  }
+);
+
 const taskSchema = new mongoose.Schema(
   {
     title: {
@@ -49,11 +83,38 @@ const taskSchema = new mongoose.Schema(
       default: "medium",
     },
 
-    /* 🔔 DUE SOON FLAG (NEW) */
     dueSoonNotified: {
       type: Boolean,
       default: false,
     },
+
+    // ✅ NEW: Subtasks (safe default)
+   subtasks: [
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+    isCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    deadline: {
+      type: Date,
+      default: null,
+    },
+  },
+],
+
   },
   {
     timestamps: true,
