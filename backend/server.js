@@ -6,7 +6,7 @@ import http from "http";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
-import "./config/cloudinary.js"; // ✅ CLOUDINARY CONFIG (IMPORTANT)
+import "./config/cloudinary.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -20,14 +20,13 @@ import Activity from "./models/Activity.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 
-console.log("Activity model loaded:", !!Activity);
-
-
 dotenv.config();
 connectDB();
 
-
 const app = express();
+
+/* ---------------- TRUST PROXY (IMPORTANT FOR RENDER) ---------------- */
+app.set("trust proxy", 1);
 
 /* ---------------- HTTP SERVER ---------------- */
 const server = http.createServer(app);
@@ -35,7 +34,7 @@ const server = http.createServer(app);
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true,
   },
 });
@@ -48,19 +47,19 @@ initNotificationSocket(io);
 /* ---------------- MIDDLEWARES ---------------- */
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
 
+app.use(express.json());
+app.use(cookieParser());
+
+/* make io available in routes */
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
-
-
-app.use(express.json());
-app.use(cookieParser());
 
 /* ---------------- ROUTES ---------------- */
 app.use("/api/auth", authRoutes);
@@ -82,6 +81,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-// console.log("MARK READ BY:", user._id, "ROOM:", roomId);
-// console.log("UNREAD COUNT:", unread.length);

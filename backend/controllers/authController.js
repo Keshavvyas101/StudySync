@@ -26,11 +26,11 @@ export const register = async (req, res) => {
     const token = generateToken(user._id);
 
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: false, // set true in production with HTTPS
-      sameSite: "Lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
     res.status(201).json({
       message: "User registered successfully",
@@ -67,11 +67,11 @@ export const login = async (req, res) => {
     const token = generateToken(user._id);
 
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "Lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
 
     
@@ -95,9 +95,11 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
   res.cookie("token", "", {
-    httpOnly: true,
-    expires: new Date(0),
-  });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
+  expires: new Date(0),
+});
 
   res.status(200).json({ message: "Logged out successfully" });
 };
