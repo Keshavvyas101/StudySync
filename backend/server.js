@@ -16,7 +16,6 @@ import chatSocket from "./sockets/chatSocket.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import notificationSocket from "./sockets/notificationSocket.js";
 import { initNotificationSocket } from "./services/notificationService.js";
-import Activity from "./models/Activity.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 
@@ -31,12 +30,22 @@ app.set("trust proxy", 1);
 /* ---------------- HTTP SERVER ---------------- */
 const server = http.createServer(app);
 
+/* ---------------- CORS CONFIG ---------------- */
+const corsOptions = {
+  origin: process.env.CLIENT_URL,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL,
+    methods: ["GET", "POST"],
     credentials: true,
   },
+  transports: ["websocket", "polling"], // helps on cloud platforms
 });
 
 /* attach socket logic */
@@ -45,12 +54,8 @@ notificationSocket(io);
 initNotificationSocket(io);
 
 /* ---------------- MIDDLEWARES ---------------- */
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // handle preflight requests
 
 app.use(express.json());
 app.use(cookieParser());
