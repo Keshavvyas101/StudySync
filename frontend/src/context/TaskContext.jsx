@@ -93,6 +93,15 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
+  const replaceTask = (task) => {
+    if (!task?._id) return;
+    setTasks((prev) => {
+      const exists = prev.some((current) => current._id === task._id);
+      if (!exists) return [task, ...prev];
+      return prev.map((current) => (current._id === task._id ? task : current));
+    });
+  };
+
   const deleteTask = async (taskId) => {
     try {
       await deleteTaskApi(taskId);
@@ -218,6 +227,7 @@ export const TaskProvider = ({ children }) => {
         loadMoreTasks,
 
         createTask,
+        replaceTask,
         updateTask,
         deleteTask,
         toggleTaskStatus,

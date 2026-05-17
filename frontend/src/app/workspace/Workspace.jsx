@@ -3,6 +3,7 @@ import api from "../../services/api";
 import { useRooms } from "../../context/RoomContext";
 import { useTasks } from "../../context/TaskContext";
 import TaskCard from "./Taskcard";
+import CopilotHero from "./CopilotHero";
 import Avatar from "../../components/common/Avatar";
 import { useUI } from "../../context/UIContext";
 import AnalyticsPanel from "../../components/analytics/AnalyticsPanel";
@@ -48,6 +49,7 @@ const Workspace = () => {
     fetchTasks,
     loadMoreTasks,
     createTask,
+    replaceTask,
   } = useTasks();
 
   const { workspaceMode, setWorkspaceMode } = useUI();
@@ -451,6 +453,15 @@ const Workspace = () => {
 
           {/* ================= CONTENT ================= */}
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 pb-28">
+            <CopilotHero
+              activeRoom={activeRoom}
+              tasks={tasks}
+              currentUser={user}
+              createTask={createTask}
+              replaceTask={replaceTask}
+              onFocusTask={expandTask}
+            />
+
             {loading && (
               <div className="mt-6 text-slate-400 text-sm">Loading tasks...</div>
             )}
