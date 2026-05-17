@@ -83,6 +83,13 @@ const taskSchema = new mongoose.Schema(
       default: "medium",
     },
 
+    recurrence: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+
     dueSoonNotified: {
       type: Boolean,
       default: false,

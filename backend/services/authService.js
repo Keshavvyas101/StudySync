@@ -29,7 +29,8 @@ export const registerUser = async ({ name, email, password }) => {
 };
 
 export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select("+password");
+  const normalizedEmail = email?.toLowerCase?.();
+  const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
   if (!user) {
     throw new Error("Invalid credentials");

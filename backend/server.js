@@ -18,6 +18,7 @@ import notificationSocket from "./sockets/notificationSocket.js";
 import { initNotificationSocket } from "./services/notificationService.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -31,9 +32,20 @@ app.set("trust proxy", 1);
 const server = http.createServer(app);
 
 /* ---------------- CORS CONFIG ---------------- */
+const CLIENT_URLS = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL,
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: (origin, callback) => {
+    if (!origin || CLIENT_URLS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS policy blocked request from ${origin}`));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
 };
@@ -41,7 +53,7 @@ const corsOptions = {
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: CLIENT_URLS,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -55,8 +67,6 @@ initNotificationSocket(io);
 
 /* ---------------- MIDDLEWARES ---------------- */
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight requests
-
 app.use(express.json());
 app.use(cookieParser());
 
@@ -74,6 +84,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/ai", aiRoutes);
 
 /* ---------------- HEALTH CHECK ---------------- */
 app.get("/", (req, res) => {

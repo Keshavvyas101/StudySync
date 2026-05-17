@@ -19,7 +19,7 @@ import {
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { title, description, deadline, assignedTo, priority } = req.body;
+    const { title, description, deadline, assignedTo, priority, recurrence } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json({ message: "Task title is required" });
@@ -46,6 +46,7 @@ export const createTask = async (req, res) => {
       assignedTo: assignedTo || null,
       createdBy: req.user._id,
       priority: priority || "medium",
+      recurrence: recurrence || null,
     });
     // 📘 Activity log
 await logActivity(req.user._id, roomId, "task_created", {
