@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import api from "../../services/api";
 import { useRooms } from "../../context/RoomContext";
-import { useAuth } from "../../context/AuthContext";
 import Avatar from "../../components/common/Avatar";
 
 // Custom SVG Icons
@@ -56,9 +55,6 @@ const RoomPanel = () => {
   let loading = false;
   let createRoom = () => {};
   let fetchRooms = async () => {};
-  let members = [];
-  let deleteRoom = async () => {};
-  let leaveRoom = async () => {};
 
   try {
     const ctx = useRooms();
@@ -68,54 +64,10 @@ const RoomPanel = () => {
     loading = ctx.loading;
     createRoom = ctx.createRoom;
     fetchRooms = ctx.fetchRooms;
-    members = ctx.members || [];
-    deleteRoom = ctx.deleteRoom;
-    leaveRoom = ctx.leaveRoom;
   } catch {}
-
-  const { user } = useAuth();
-
-  const isOwner =
-    activeRoom &&
-    user &&
-    activeRoom.owner?._id === user._id;
 
   const [inviteCode, setInviteCode] = useState("");
   const [joinError, setJoinError] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  // 🆕 Upload
-  const fileInputRef = useRef(null);
-  const [targetRoom, setTargetRoom] = useState(null);
-
-  // 🆕 Dropdown menu state
-  const [openMenuRoomId, setOpenMenuRoomId] = useState(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const close = () => setOpenMenuRoomId(null);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, []);
-
-  const handleUploadRoomAvatar = async (file) => {
-    if (!file || !targetRoom) return;
-
-    const form = new FormData();
-    form.append("avatar", file);
-
-    try {
-      await api.patch(
-        `/rooms/${targetRoom._id}/avatar`,
-        form
-      );
-
-      await fetchRooms();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to upload room image");
-    }
-  };
 
   const handleCreateRoom = () => {
     const name = prompt("Enter room name");
@@ -139,12 +91,6 @@ const RoomPanel = () => {
         err.response?.data?.message || "Failed to join room"
       );
     }
-  };
-
-  const handleCopyInviteCode = () => {
-    navigator.clipboard.writeText(activeRoom.inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -184,8 +130,6 @@ const RoomPanel = () => {
           <ul className="space-y-1.5">
             {rooms.map((room) => {
               const isActive = activeRoom?._id === room._id;
-              const isRoomOwner = user?._id === room.owner?._id;
-
               return (
                 <li
                   key={room._id}
@@ -217,86 +161,8 @@ const RoomPanel = () => {
                       <span className="font-medium truncate block">
                         {room.name}
                       </span>
-                      {isRoomOwner && (
-                        <span className={`text-xs ${isActive ? 'text-purple-100' : 'text-slate-500 dark:text-slate-500'}`}>
-                          Owner
-                        </span>
-                      )}
                     </div>
                   </div>
-
-                  {/* Owner menu */}
-                  {isRoomOwner && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenMenuRoomId(
-                            openMenuRoomId === room._id
-                              ? null
-                              : room._id
-                          );
-                        }}
-                        className={`
-                          w-8 h-8 rounded-lg flex items-center justify-center
-                          transition-all duration-200
-                          ${isActive 
-                            ? 'text-white/70 hover:text-white hover:bg-white/10' 
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
-                          }
-                        `}
-                      >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                          <circle cx="8" cy="3" r="1.5"/>
-                          <circle cx="8" cy="8" r="1.5"/>
-                          <circle cx="8" cy="13" r="1.5"/>
-                        </svg>
-                      </button>
-
-                      {openMenuRoomId === room._id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="
-                            absolute right-0 mt-2 w-48
-                            bg-white dark:bg-slate-800
-                            border border-slate-200 dark:border-slate-700
-                            rounded-xl shadow-2xl z-50 overflow-hidden
-                          "
-                          style={{
-                            animation: 'fadeIn 0.2s ease-out'
-                          }}
-                        >
-                          <button
-                            onClick={() => {
-                              setTargetRoom(room);
-                              fileInputRef.current.click();
-                              setOpenMenuRoomId(null);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 transition-colors"
-                          >
-                            <Icons.Image />
-                            Update image
-                          </button>
-
-                          <div className="border-t border-slate-100 dark:border-slate-700"></div>
-
-                          <button
-                            onClick={() => {
-                              const ok = window.confirm(
-                                "This will permanently delete this room. Continue?"
-                              );
-                              if (ok) deleteRoom(room._id);
-                              setOpenMenuRoomId(null);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
-                          >
-                            <Icons.Trash />
-                            Delete room
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </li>
               );
             })}
@@ -319,89 +185,6 @@ const RoomPanel = () => {
             Create Room
           </button>
         </div>
-
-        {/* hidden file input */}
-        <input
-          type="file"
-          accept="image/*"
-          hidden
-          ref={fileInputRef}
-          onChange={(e) => handleUploadRoomAvatar(e.target.files[0])}
-        />
-
-        {/* ================= INVITE CODE ================= */}
-        {activeRoom && (
-          <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <Icons.Hash />
-              Invite Code
-            </h3>
-
-            <div className="flex items-center gap-2">
-              <div
-                className="
-                  flex-1 px-3 py-2.5 rounded-lg
-                  text-sm font-mono font-semibold
-                  bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800
-                  border border-slate-200 dark:border-slate-700
-                  text-purple-600 dark:text-purple-400
-                  select-all
-                "
-              >
-                {activeRoom.inviteCode}
-              </div>
-
-              <button
-                onClick={handleCopyInviteCode}
-                className="
-                  px-3 py-2.5 rounded-lg text-sm font-medium
-                  bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
-                  text-white transition-all duration-200
-                  shadow-sm hover:shadow-md
-                  flex items-center gap-2
-                "
-              >
-                {copied ? (
-                  <>
-                    <Icons.Check />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Icons.Copy />
-                    Copy
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ================= LEAVE ROOM ================= */}
-        {activeRoom && !isOwner && (
-          <div>
-            <button
-              onClick={() => {
-                const ok = window.confirm(
-                  "Are you sure you want to leave this room?"
-                );
-                if (ok) leaveRoom(activeRoom._id);
-              }}
-              className="
-                w-full py-2.5 rounded-xl
-                text-sm font-semibold
-                bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400
-                text-white transition-all duration-200
-                shadow-sm hover:shadow-md
-                flex items-center justify-center gap-2
-              "
-            >
-              <Icons.LogOut />
-              Leave Room
-            </button>
-          </div>
-        )}
-
         {/* ================= JOIN ROOM ================= */}
         <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
@@ -449,46 +232,7 @@ const RoomPanel = () => {
             </div>
           )}
         </div>
-
-        {/* ================= MEMBERS ================= */}
-        {activeRoom && members.length > 0 && (
-          <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <Icons.Users />
-              Members ({members.length})
-            </h3>
-
-            <ul className="space-y-2">
-              {members.map((m) => (
-                <li
-                  key={m._id}
-                  className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-                >
-                  <Avatar
-                    name={m.name}
-                    src={m.avatar?.url}
-                    size={32}
-                  />
-                  <span className="font-medium">{m.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </aside>
   );
 };

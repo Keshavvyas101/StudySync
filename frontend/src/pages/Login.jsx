@@ -6,9 +6,8 @@ import { useAuth } from "../context/AuthContext";
 const Login = () => {
   const navigate = useNavigate();
 
-  // ✅ SAFE ACCESS
-  const auth = useAuth?.();
-  const fetchMe = auth?.fetchMe;
+  // Auth context provides the user fetch helper after successful login
+  const { fetchMe } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -29,14 +28,18 @@ const Login = () => {
 
     try {
       setLoading(true);
-      await api.post("/auth/login", formData);
+      await api.post("/auth/login", {
+        ...formData,
+        email: formData.email.toLowerCase(),
+      });
 
-      if (fetchMe) {
-        await fetchMe();
-      }
+      // if (fetchMe) {
+      //   await fetchMe();
+      // }
 
       navigate("/app");
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);

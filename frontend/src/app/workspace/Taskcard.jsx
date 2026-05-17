@@ -10,16 +10,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
-  ChevronDown: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  ),
   Edit: () => (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -65,7 +55,13 @@ const getDeadlineStatus = (deadline) => {
 
 /* ===================== COMPONENT ===================== */
 
-const TaskCard = ({ task, members = [] }) => {
+const TaskCard = ({
+  task,
+  members = [],
+  expanded = false,
+  onToggle,
+  onExpand,
+}) => {
   const {
     updateTask,
     deleteTask,
@@ -77,7 +73,6 @@ const TaskCard = ({ task, members = [] }) => {
 
   const cardRef = useRef(null);
 
-  const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -96,7 +91,7 @@ const TaskCard = ({ task, members = [] }) => {
 
   useEffect(() => {
     if (isFocused && cardRef.current) {
-      setExpanded(true);
+      onExpand?.(task._id);
       requestAnimationFrame(() => {
         cardRef.current.scrollIntoView({
           behavior: "smooth",
@@ -104,7 +99,7 @@ const TaskCard = ({ task, members = [] }) => {
         });
       });
     }
-  }, [isFocused]);
+  }, [isFocused, onExpand, task._id]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -131,8 +126,9 @@ const TaskCard = ({ task, members = [] }) => {
   return (
     <div
       ref={cardRef}
+      onClick={() => onToggle?.(task._id)}
       className={`
-        group relative
+        group relative cursor-pointer
         bg-white dark:bg-slate-800/50
         backdrop-blur-sm
         border-2 rounded-2xl
@@ -146,8 +142,7 @@ const TaskCard = ({ task, members = [] }) => {
     >
       {/* HEADER */}
       <div
-        className="flex items-start gap-4 p-5 cursor-pointer"
-        onClick={() => setExpanded((prev) => !prev)}
+        className="flex items-start gap-4 p-5"
       >
         {/* Status Checkbox */}
         <div
@@ -262,7 +257,7 @@ const TaskCard = ({ task, members = [] }) => {
               ">
                 <button
                   onClick={() => {
-                    setExpanded(true);
+                    onExpand?.(task._id);
                     setIsEditing(true);
                     setMenuOpen(false);
                   }}
@@ -298,20 +293,6 @@ const TaskCard = ({ task, members = [] }) => {
               </div>
             )}
           </div>
-
-          {/* Expand Icon */}
-          <button
-            className="
-              w-8 h-8 rounded-lg flex items-center justify-center
-              text-slate-600 dark:text-slate-400
-              hover:bg-slate-100 dark:hover:bg-slate-700
-              transition-all duration-200
-            "
-          >
-            <div className={`transform transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
-              <Icons.ChevronDown />
-            </div>
-          </button>
         </div>
       </div>
 
