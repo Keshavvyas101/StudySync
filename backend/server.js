@@ -19,6 +19,7 @@ import { initNotificationSocket } from "./services/notificationService.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import studySessionRoutes from "./routes/studySessionRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -45,7 +46,7 @@ const corsOptions = {
       callback(new Error(`CORS policy blocked request from ${origin}`));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
 };
@@ -85,6 +86,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/study-sessions", studySessionRoutes);
 
 /* ---------------- HEALTH CHECK ---------------- */
 app.get("/", (req, res) => {
@@ -92,7 +94,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------- START SERVER ---------------- */
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

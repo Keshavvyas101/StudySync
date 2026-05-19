@@ -126,7 +126,13 @@ export const TaskProvider = ({ children }) => {
     );
 
     try {
-      await toggleTaskStatusApi(taskId);
+      const updated = await toggleTaskStatusApi(taskId);
+      if (updated?._id) {
+        setTasks((prev) =>
+          prev.map((t) => (t._id === updated._id ? updated : t))
+        );
+      }
+      return updated;
     } catch (error) {
       console.error("Error toggling task status:", error);
       // Revert on error

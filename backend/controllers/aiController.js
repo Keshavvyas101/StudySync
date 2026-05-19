@@ -8,6 +8,22 @@ import {
   extractCreateTask,
   extractRecurringTask,
 } from "../services/Ai.js";
+import { buildAIContext } from "../services/ai/contextBuilder.js";
+import AIResponseAudit from "../models/AIResponseAudit.js";
+import { buildActionBoundaryReply } from "../services/ai/actionDraft.js";
+import { generateGeneralReasoningReply } from "../services/ai/generalReasoning.js";
+import { maybeUpdateConversationMemory } from "../services/ai/memoryService.js";
+import { buildPhase4Context } from "../services/ai/phase4ContextBuilder.js";
+import {
+  generateMockInsight,
+  isValidCopilotMode,
+} from "../services/ai/mockInsightGenerator.js";
+import {
+  COPILOT_FALLBACK_MESSAGE,
+  resolveCopilotIntent,
+} from "../services/ai/intentResolver.js";
+import { inferResponseStyle, routeQuery, ROUTES } from "../services/ai/queryRouter.js";
+import { ensureWorkspaceAccess } from "../services/ai/workspaceAccess.js";
 
 const TASK_QUERY_INTENTS = new Set([
   "MY_TASKS",
@@ -207,6 +223,50 @@ const handleAiError = (res, error) => {
   return res.status(503).json({ message: "Copilot unavailable6" });
 };
 
+const getSourceOfTruth = (route) => {
+  switch (route) {
+    case ROUTES.STUDYSYNC_INTENT:
+      return "studysync_data";
+    case ROUTES.GENERAL_REASONING:
+      return "general_reasoning";
+    case ROUTES.ACTION_REQUEST:
+      return "approval_boundary";
+    default:
+      return "none";
+  }
+};
+
+const saveResponseAudit = async ({
+  userId,
+  workspaceId,
+  routerResult,
+  responseStyle,
+  sourceOfTruthUsed,
+  llmUsed = false,
+  studySyncDataUsed = false,
+  resolvedMode = null,
+  draftAction = null,
+}) => {
+  try {
+    await AIResponseAudit.create({
+      user: userId,
+      workspace: workspaceId,
+      originalQuery: routerResult.originalQuery || "",
+      route: routerResult.route,
+      confidence: routerResult.confidence || 0,
+      matchedPattern: routerResult.matchedPattern || null,
+      responseStyle,
+      sourceOfTruthUsed,
+      llmUsed,
+      studySyncDataUsed,
+      resolvedMode,
+      draftAction,
+    });
+  } catch (error) {
+    console.warn("Copilot audit save failed:", error.message);
+  }
+};
+
 export const parseTask = async (req, res) => {
   try {
     const { prompt, roomId, currentDate, timezone } = req.body;
@@ -327,5 +387,218 @@ export const parseTask = async (req, res) => {
     }
   } catch (error) {
     return handleAiError(res, error);
+  }
+};
+
+export const copilot = async (req, res) => {
+  try {
+    const { roomId, mode, query } = req.body;
+    const routerResult = query?.trim()
+      ? routeQuery(query)
+      : {
+          route: ROUTES.STUDYSYNC_INTENT,
+          confidence: mode ? 1 : 0,
+          matchedPattern: mode || null,
+          originalQuery: query || mode || "",
+          normalizedQuery: "",
+          reasoning: "A deterministic Copilot chip or mode was provided.",
+          mode,
+        };
+    const responseStyle = inferResponseStyle(
+      routerResult.originalQuery || mode || "",
+      routerResult.route
+    );
+
+    if (routerResult.route === ROUTES.ACTION_REQUEST) {
+      const room = await ensureWorkspaceAccess(roomId, req.user._id);
+      const insight = buildActionBoundaryReply({
+        query: routerResult.originalQuery,
+      });
+
+      await saveResponseAudit({
+        userId: req.user._id,
+        workspaceId: room._id,
+        routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        draftAction: insight.draftAction,
+      });
+
+      return res.status(200).json({
+        success: true,
+        originalQuery: routerResult.originalQuery,
+        route: routerResult.route,
+        router: routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: false,
+        studySyncDataUsed: false,
+        insight,
+      });
+    }
+
+    if (routerResult.route === ROUTES.GENERAL_REASONING) {
+      const { context, llmContext } = await buildPhase4Context({
+        userId: req.user._id,
+        roomId,
+        route: routerResult.route,
+        responseStyle,
+        routerConfidence: routerResult.confidence,
+      });
+      const reply = await generateGeneralReasoningReply({
+        query: routerResult.originalQuery,
+        llmContext,
+      });
+      const insight = {
+        type: "general_reasoning",
+        title: reply.title,
+        recommendation: reply.answer,
+        why: reply.bullets,
+        caveat: reply.caveat,
+        audit: {
+          route: routerResult.route,
+          responseStyle,
+          sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+          llmUsed: reply.llmUsed,
+          studySyncDataUsed: false,
+          generatedAt: new Date().toISOString(),
+        },
+      };
+
+      await maybeUpdateConversationMemory({
+        userId: req.user._id,
+        workspaceId: context.workspace.id,
+        route: routerResult.route,
+        responseStyle,
+      });
+      await saveResponseAudit({
+        userId: req.user._id,
+        workspaceId: context.workspace.id,
+        routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: reply.llmUsed,
+        studySyncDataUsed: false,
+      });
+
+      return res.status(200).json({
+        success: true,
+        originalQuery: routerResult.originalQuery,
+        route: routerResult.route,
+        router: routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: reply.llmUsed,
+        studySyncDataUsed: false,
+        context: {
+          workspace: context.workspace,
+          proactiveInsights: context.proactiveInsights,
+          memory: context.memory,
+        },
+        insight,
+      });
+    }
+
+    if (routerResult.route === ROUTES.UNKNOWN) {
+      const room = await ensureWorkspaceAccess(roomId, req.user._id);
+      await saveResponseAudit({
+        userId: req.user._id,
+        workspaceId: room._id,
+        routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+      });
+
+      return res.status(200).json({
+        success: false,
+        message:
+          "Do you want a StudySync recommendation or a general explanation?",
+        originalQuery: routerResult.originalQuery,
+        route: routerResult.route,
+        router: routerResult,
+        responseStyle,
+        sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        resolvedMode: null,
+        resolverConfidence: routerResult.confidence,
+        matchedPattern: routerResult.matchedPattern,
+      });
+    }
+
+    const resolution = {
+      ...resolveCopilotIntent(query || mode || ""),
+      mode: routerResult.mode || mode || resolveCopilotIntent(query || "").mode,
+      confidence: routerResult.confidence,
+      matchedPattern: routerResult.matchedPattern,
+      originalQuery: routerResult.originalQuery,
+    };
+    const resolvedMode = resolution.mode;
+
+    if (!resolvedMode && query?.trim()) {
+      return res.status(200).json({
+        success: false,
+        message: COPILOT_FALLBACK_MESSAGE,
+        originalQuery: resolution.originalQuery,
+        resolvedMode: null,
+        resolverConfidence: 0,
+        matchedPattern: null,
+      });
+    }
+
+    if (!isValidCopilotMode(resolvedMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Unsupported Copilot mode",
+        originalQuery: resolution.originalQuery,
+        resolvedMode,
+        resolverConfidence: resolution.confidence,
+        matchedPattern: resolution.matchedPattern,
+      });
+    }
+
+    const context = await buildAIContext({
+      userId: req.user._id,
+      roomId,
+    });
+    const insight = generateMockInsight({ mode: resolvedMode, context });
+
+    await saveResponseAudit({
+      userId: req.user._id,
+      workspaceId: context.workspace.id,
+      routerResult,
+      responseStyle,
+      sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+      llmUsed: false,
+      studySyncDataUsed: true,
+      resolvedMode,
+    });
+
+    return res.status(200).json({
+      success: true,
+      originalQuery: resolution.originalQuery,
+      route: routerResult.route,
+      router: routerResult,
+      responseStyle,
+      sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+      llmUsed: false,
+      studySyncDataUsed: true,
+      resolvedMode,
+      resolverConfidence: resolution.confidence,
+      matchedPattern: resolution.matchedPattern,
+      context,
+      insight,
+    });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error("Deterministic Copilot failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Copilot context unavailable",
+    });
   }
 };

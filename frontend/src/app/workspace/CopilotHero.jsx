@@ -1,157 +1,190 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
 
-const EXAMPLES = [
-  "Revise graphs tomorrow",
-  "Show my tasks",
-  "What is due today",
-  "Create subtasks for revise trees",
+const QUICK_ACTIONS = [
+  {
+    label: "What should I study next?",
+    mode: "next_task",
+  },
+  {
+    label: "Am I behind schedule?",
+    mode: "behind_schedule",
+  },
+  {
+    label: "What needs attention?",
+    mode: "room_attention",
+  },
+  {
+    label: "How is our team doing?",
+    mode: "team_summary",
+  },
+  {
+    label: "What should I finish today?",
+    mode: "daily_plan",
+  },
 ];
 
-const QUERY_INTENTS = new Set([
-  "MY_TASKS",
-  "DUE_TODAY",
-  "DUE_TOMORROW",
-  "DUE_THIS_WEEK",
-  "OVERDUE",
-  "HIGH_PRIORITY",
+const LOW_QUALITY_TASK_TITLES = new Set([
+  "task",
+  "task 1",
+  "task 2",
+  "test",
+  "demo",
+  "shopping",
+  "temporary",
 ]);
 
-const startOfDay = (date) => {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+const normalizeTaskTitle = (value = "") =>
+  value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ");
+
+const isMeaningfulTask = (task) => {
+  const title = normalizeTaskTitle(task?.title);
+  return title.length > 0 && !LOW_QUALITY_TASK_TITLES.has(title);
 };
 
-const addDays = (date, days) => {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() + days);
-  return copy;
+const MODE_LABELS = {
+  due_tomorrow: "Due tomorrow",
+  productivity_advice: "Productivity advice",
 };
 
-const isIncomplete = (task) => task.status !== "completed";
+const getModeLabel = (mode) =>
+  QUICK_ACTIONS.find((action) => action.mode === mode)?.label ||
+  MODE_LABELS[mode] ||
+  "Study Copilot";
 
-const formatDate = (value) => {
-  if (!value) return "No deadline";
-  return new Date(value).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+const getRouteLabel = (result, insight) => {
+  if (result?.route === "GENERAL_REASONING") return "General reasoning";
+  if (result?.route === "ACTION_REQUEST") return "Approval boundary";
+  if (result?.route === "STUDYSYNC_INTENT") return getModeLabel(insight?.type);
+  return "Study Copilot";
 };
-
-const getTaskMatches = (intent, tasks, currentUser) => {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
-  const nextWeek = addDays(today, 7);
-  const userId = currentUser?._id;
-
-  switch (intent) {
-    case "MY_TASKS":
-      return tasks.filter((task) => {
-        const assignedToMe = task.assignedTo?._id === userId;
-        const createdByMe = task.createdBy?._id === userId;
-        return isIncomplete(task) && (assignedToMe || createdByMe);
-      });
-
-    case "DUE_TODAY":
-      return tasks.filter((task) => {
-        if (!task.deadline || !isIncomplete(task)) return false;
-        const due = startOfDay(new Date(task.deadline));
-        return due.getTime() === today.getTime();
-      });
-
-    case "DUE_TOMORROW":
-      return tasks.filter((task) => {
-        if (!task.deadline || !isIncomplete(task)) return false;
-        const due = startOfDay(new Date(task.deadline));
-        return due.getTime() === tomorrow.getTime();
-      });
-
-    case "DUE_THIS_WEEK":
-      return tasks.filter((task) => {
-        if (!task.deadline || !isIncomplete(task)) return false;
-        const due = new Date(task.deadline);
-        return due >= today && due < nextWeek;
-      });
-
-    case "OVERDUE":
-      return tasks.filter((task) => {
-        if (!task.deadline || !isIncomplete(task)) return false;
-        return new Date(task.deadline) < today;
-      });
-
-    case "HIGH_PRIORITY":
-      return tasks.filter(
-        (task) => isIncomplete(task) && task.priority === "high"
-      );
-
-    default:
-      return [];
-  }
-};
-
-const getQueryTitle = (intent) => {
-  const labels = {
-    MY_TASKS: "Your tasks",
-    DUE_TODAY: "Due today",
-    DUE_TOMORROW: "Due tomorrow",
-    DUE_THIS_WEEK: "Due this week",
-    OVERDUE: "Overdue",
-    HIGH_PRIORITY: "High priority",
-  };
-
-  return labels[intent] || "Results";
-};
-
-const flattenMetricCards = (payload) => {
-  if (!payload || typeof payload !== "object") return [];
-
-  return Object.entries(payload)
-    .filter(([, value]) =>
-      ["number", "string", "boolean"].includes(typeof value)
-    )
-    .slice(0, 4)
-    .map(([key, value]) => ({
-      label: key.replace(/([A-Z])/g, " $1").replace(/_/g, " "),
-      value: String(value),
-    }));
-};
-
-const TaskResultCard = ({ task, onFocusTask }) => (
-  <button
-    type="button"
-    onClick={() => onFocusTask?.(task._id)}
-    className="w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 hover:border-indigo-300 dark:hover:border-indigo-500 transition"
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-          {task.title}
-        </div>
-        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          {formatDate(task.deadline)}
-        </div>
-      </div>
-      <span className="shrink-0 rounded-full border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] font-semibold uppercase text-slate-600 dark:text-slate-300">
-        {task.priority || "medium"}
-      </span>
-    </div>
-  </button>
-);
 
 const LoadingDots = () => (
-  <div className="flex items-center gap-1.5">
+  <div className="flex items-center gap-1.5" aria-hidden="true">
     {[0, 1, 2].map((dot) => (
       <span
         key={dot}
-        className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"
+        className="h-2 w-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500/30 animate-pulse"
         style={{ animationDelay: `${dot * 120}ms` }}
       />
     ))}
   </div>
 );
+
+const TaskPill = ({ task, onFocusTask }) => {
+  if (!task || !isMeaningfulTask(task)) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onFocusTask?.(task.id)}
+      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+    >
+      {task.title}
+    </button>
+  );
+};
+
+const InsightCard = ({ result, onFocusTask }) => {
+  if (!result) return null;
+
+  const { insight } = result;
+  const why = Array.isArray(insight?.why) ? insight.why : [];
+  const tasks = [
+    ...(Array.isArray(insight?.tasks) ? insight.tasks : []),
+    ...(Array.isArray(insight?.suggestedTasks) ? insight.suggestedTasks : []),
+  ].filter(isMeaningfulTask);
+
+  return (
+    <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+      <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+        {getRouteLabel(result, insight)}
+      </div>
+      <h4 className="mt-2 text-base font-semibold text-slate-950 dark:text-slate-50">
+        {insight.title}
+      </h4>
+      <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+        {insight.recommendation}
+      </p>
+
+      {why.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            Why
+          </div>
+          <ul className="mt-2 space-y-2">
+            {why.map((reason) => (
+              <li
+                key={reason}
+                className="flex gap-2 text-sm leading-5 text-slate-600 dark:text-slate-300"
+              >
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                <span>{reason}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {insight?.caveat && (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-5 text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+          {insight.caveat}
+        </div>
+      )}
+
+      {tasks.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tasks.slice(0, 5).map((task) => (
+            <TaskPill key={task.id} task={task} onFocusTask={onFocusTask} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProactiveInsights = ({ insights }) => {
+  const items = Array.isArray(insights) ? insights : [];
+
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        Today's Insights
+      </div>
+      <div className="mt-3 space-y-2">
+        {items.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+            Everything looks on track.
+          </div>
+        ) : (
+          items.map((insight) => (
+            <div
+              key={`${insight.type}-${insight.cooldownKey}`}
+              className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/80"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {insight.title}
+                </div>
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  {insight.severity}
+                </span>
+              </div>
+              <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                {insight.message}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 const CopilotHero = ({
   activeRoom,
@@ -160,101 +193,83 @@ const CopilotHero = ({
   createTask,
   replaceTask,
   onFocusTask,
+  onClose,
 }) => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [headerInsight, setHeaderInsight] = useState("");
+  const [proactiveInsights, setProactiveInsights] = useState([]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
+  void currentUser;
+  void createTask;
+  void replaceTask;
+
   const taskCount = useMemo(
-    () => tasks.filter((task) => task.status !== "completed").length,
+    () =>
+      tasks.filter((task) => task.status !== "completed" && isMeaningfulTask(task))
+        .length,
     [tasks]
   );
 
-  const runCopilot = async (value) => {
-    const text = value.trim();
+  useEffect(() => {
+    let active = true;
+
+    const loadHeaderInsight = async () => {
+      if (!activeRoom?._id) {
+        setHeaderInsight("");
+        return;
+      }
+
+      try {
+        const res = await api.post("/ai/copilot", {
+          roomId: activeRoom._id,
+          mode: "daily_plan",
+        });
+
+        if (active) {
+          setHeaderInsight(res.data?.insight?.headerContext?.label || "");
+          setProactiveInsights(res.data?.context?.proactiveInsights || []);
+        }
+      } catch {
+        if (active) setHeaderInsight("");
+      }
+    };
+
+    loadHeaderInsight();
+
+    return () => {
+      active = false;
+    };
+  }, [activeRoom?._id]);
+
+  const runQuery = async (query) => {
+    const text = query.trim();
     if (!text || !activeRoom?._id || loading) return;
 
     try {
       setLoading(true);
       setError("");
-      setResult(null);
 
-      const res = await api.post("/ai/parse-task", {
-        prompt: text,
+      const res = await api.post("/ai/copilot", {
         roomId: activeRoom._id,
-        currentDate: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        query: text,
       });
 
-      const { intent } = res.data;
-
-      if (intent === "UNKNOWN") {
-        setError("Copilot handles StudySync tasks, planning, habits, and insights.");
+      if (!res.data?.success) {
+        setResult(null);
+        setError(res.data?.message || "I'm still learning. Ask me about tasks, deadlines, focus, or team progress.");
+        setPrompt(text);
         return;
       }
 
-      if (intent === "CREATE_TASK" || intent === "CREATE_RECURRING_TASK") {
-        const created = await createTask(activeRoom._id, res.data.task);
-        setResult({
-          type: "tasks",
-          title:
-            intent === "CREATE_RECURRING_TASK"
-              ? "Recurring task created"
-              : "Task created",
-          tasks: [created],
-        });
-        onFocusTask?.(created._id);
-        setPrompt("");
-        return;
-      }
-
-      if (intent === "CREATE_SUBTASKS" || intent === "ASSIGN_TASK") {
-        replaceTask(res.data.task);
-        setResult({
-          type: "tasks",
-          title:
-            intent === "CREATE_SUBTASKS"
-              ? "Subtasks created"
-              : "Task assigned",
-          tasks: [res.data.task],
-        });
-        onFocusTask?.(res.data.task._id);
-        setPrompt("");
-        return;
-      }
-
-      if (QUERY_INTENTS.has(intent)) {
-        const matches = Array.isArray(res.data.tasks)
-          ? res.data.tasks
-          : getTaskMatches(intent, tasks, currentUser);
-        setResult({
-          type: "tasks",
-          title: getQueryTitle(intent),
-          tasks: matches,
-        });
-        return;
-      }
-
-      if (intent === "PRODUCTIVITY_SUMMARY") {
-        const [summary, productivity, streak] = await Promise.allSettled([
-          api.get(`/analytics/room/${activeRoom._id}/summary`),
-          api.get(`/analytics/room/${activeRoom._id}/productivity`),
-          api.get(`/analytics/room/${activeRoom._id}/streak`),
-        ]);
-
-        setResult({
-          type: "summary",
-          title: "Productivity summary",
-          cards: [
-            ...flattenMetricCards(summary.value?.data),
-            ...flattenMetricCards(productivity.value?.data),
-            ...flattenMetricCards(streak.value?.data),
-          ].slice(0, 6),
-        });
-      }
+      setResult(res.data);
+      setProactiveInsights(res.data?.context?.proactiveInsights || []);
+      setHeaderInsight(res.data?.insight?.headerContext?.label || headerInsight);
+      setPrompt(text);
     } catch (err) {
-      setError(err.response?.data?.message || "Copilot unavailable1");
+      setError(err.response?.data?.message || "Copilot unavailable");
     } finally {
       setLoading(false);
     }
@@ -262,130 +277,122 @@ const CopilotHero = ({
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    runCopilot(prompt);
+    runQuery(prompt);
   };
 
   return (
-    <section className="mx-auto mb-6 w-full max-w-5xl rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-      <div className="p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
-              StudySync Copilot
-            </div>
-            <h3 className="mt-1 text-xl font-semibold text-slate-950 dark:text-slate-50">
-              What should we move forward?
+    <aside className="flex h-full flex-col bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+      <div className="border-b border-slate-200/80 bg-white/90 px-5 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-slate-950 dark:text-slate-50">
+              Study Copilot
             </h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {taskCount} active {taskCount === 1 ? "task" : "tasks"} in{" "}
-              {activeRoom?.name}
+            <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+              Ask what to focus on.
             </p>
           </div>
-
-          {loading && (
-            <div className="flex items-center gap-3 rounded-lg border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-200">
-              <LoadingDots />
-              Working
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            aria-label="Close Study Copilot"
+          >
+            X
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <input
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Ask Copilot to create, find, plan, or assign tasks"
-            className="min-h-11 flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-4 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-          />
-          <button
-            type="submit"
-            disabled={loading || !prompt.trim()}
-            className="min-h-11 rounded-lg bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Run Copilot
-          </button>
-        </form>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => {
-                setPrompt(example);
-                runCopilot(example);
-              }}
-              disabled={loading}
-              className="rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-300 disabled:opacity-50"
-            >
-              {example}
-            </button>
-          ))}
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span>
+            {taskCount} active {taskCount === 1 ? "task" : "tasks"} in {activeRoom?.name}
+          </span>
+          {headerInsight && (
+            <>
+              <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+              <span className="truncate">{headerInsight}</span>
+            </>
+          )}
         </div>
       </div>
 
-      {(error || result) && (
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 sm:p-5">
+      <div className="flex-1 overflow-y-auto px-5 py-5">
+        <ProactiveInsights insights={proactiveInsights} />
+
+        <div>
+          <div className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            Quick Questions
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.mode}
+                type="button"
+                onClick={() => runQuery(action.label)}
+                disabled={loading}
+                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md disabled:translate-y-0 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              Answer
+            </div>
+            {loading && (
+              <div className="flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 shadow-sm dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
+                <LoadingDots />
+                Thinking
+              </div>
+            )}
+          </div>
+
+          {!error && !result && !loading && (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-5 py-8 text-center text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+              Copilot reads your tasks, deadlines, focus history, and AI memory to give deterministic study guidance.
+            </div>
+          )}
+
           {error && (
-            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-800/80 dark:bg-amber-900/20 dark:text-amber-300">
               {error}
             </div>
           )}
 
-          {result?.type === "tasks" && (
-            <div>
-              <div className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {result.title}
-              </div>
-              {result.tasks.length === 0 ? (
-                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-                  No matching tasks.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {result.tasks.slice(0, 6).map((task) => (
-                    <TaskResultCard
-                      key={task._id}
-                      task={task}
-                      onFocusTask={onFocusTask}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {result?.type === "summary" && (
-            <div>
-              <div className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {result.title}
-              </div>
-              {result.cards.length === 0 ? (
-                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
-                  No analytics available yet.
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                  {result.cards.map((card) => (
-                    <div
-                      key={`${card.label}-${card.value}`}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-                    >
-                      <div className="text-xs capitalize text-slate-500 dark:text-slate-400">
-                        {card.label}
-                      </div>
-                      <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        {card.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {result && <InsightCard result={result} onFocusTask={onFocusTask} />}
         </div>
-      )}
-    </section>
+      </div>
+
+      <div className="border-t border-slate-200/80 bg-white/95 px-5 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 shadow-inner shadow-slate-200/60 transition-all duration-200 focus-within:border-indigo-300 focus-within:shadow-[0_0_0_4px_rgba(99,102,241,0.12)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20 dark:focus-within:border-indigo-500/70"
+        >
+          <input
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder="Ask a study question..."
+            className="min-h-9 flex-1 bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+          <button
+            type="submit"
+            disabled={loading || !prompt.trim()}
+            className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+            aria-label="Ask Study Copilot"
+          >
+            {loading ? (
+              <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin dark:border-slate-950/30 dark:border-t-slate-950" />
+            ) : (
+              "Ask"
+            )}
+          </button>
+        </form>
+      </div>
+    </aside>
   );
 };
 

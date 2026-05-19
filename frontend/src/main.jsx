@@ -10,6 +10,7 @@ import { TaskProvider } from "./context/TaskContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { UserProvider } from "./context/UserContext";
 import { UIProvider } from "./context/UIContext";
+import { StudySessionProvider } from "./context/StudySessionContext";
 
 
 
@@ -30,11 +31,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
          <UserProvider>
             <RoomProvider>
               <TaskProvider>
-                <NotificationProvider>
-                   <UIProvider>
-                  <App/> 
-                  </UIProvider>
-                </NotificationProvider>
+                <StudySessionProvider>
+                  <NotificationProvider>
+                    <UIProvider>
+                      <App/>
+                    </UIProvider>
+                  </NotificationProvider>
+                </StudySessionProvider>
               </TaskProvider>
            </RoomProvider>
          </UserProvider>

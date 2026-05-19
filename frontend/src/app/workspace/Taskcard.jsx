@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTasks } from "../../context/TaskContext";
 import Avatar from "../../components/common/Avatar";
 import { useUI } from "../../context/UIContext";
+import { useStudySession } from "../../context/StudySessionContext";
 
 /* ===================== ICONS ===================== */
 const Icons = {
@@ -35,6 +36,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  Clock: () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 };
 
 /* ===================== HELPERS ===================== */
@@ -53,6 +59,18 @@ const getDeadlineStatus = (deadline) => {
   return { label: "On Track", type: "ok" };
 };
 
+const priorityStyles = {
+  high: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/25 dark:text-rose-300",
+  medium: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-300",
+  low: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-300",
+};
+
+const deadlineStyles = {
+  overdue: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300",
+  soon: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/25 dark:text-orange-300",
+  ok: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300",
+};
+
 /* ===================== COMPONENT ===================== */
 
 const TaskCard = ({
@@ -69,7 +87,16 @@ const TaskCard = ({
     getTaskProgress,
   } = useTasks();
 
-  const { openTask, focusedTaskId } = useUI();
+  const { openTask, openFocusSession, focusedTaskId } = useUI();
+  const {
+    activeSession,
+    actionLoading,
+    formattedElapsed,
+    startSession,
+    pauseSession,
+    resumeSession,
+    completeSession,
+  } = useStudySession();
 
   const cardRef = useRef(null);
 
@@ -88,6 +115,31 @@ const TaskCard = ({
   const isFocused = focusedTaskId === task._id;
   const progress = getTaskProgress(task);
   const isCompleted = task.status === 'completed';
+  const activeTaskId = activeSession?.task?._id || activeSession?.task;
+  const isActiveFocusTask = activeTaskId === task._id;
+  const isFocusPaused = isActiveFocusTask && activeSession?.status === "paused";
+
+  const handleStartFocus = async (event) => {
+    event.stopPropagation();
+    if (isCompleted) return;
+    await startSession(task._id);
+    openFocusSession(task._id);
+  };
+
+  const handlePauseFocus = async (event) => {
+    event.stopPropagation();
+    await pauseSession();
+  };
+
+  const handleResumeFocus = async (event) => {
+    event.stopPropagation();
+    await resumeSession();
+  };
+
+  const handleCompleteFocus = async (event) => {
+    event.stopPropagation();
+    await completeSession();
+  };
 
   useEffect(() => {
     if (isFocused && cardRef.current) {
@@ -129,20 +181,22 @@ const TaskCard = ({
       onClick={() => onToggle?.(task._id)}
       className={`
         group relative cursor-pointer
-        bg-white dark:bg-slate-800/50
+        bg-white/90 dark:bg-slate-900/70
         backdrop-blur-sm
-        border-2 rounded-2xl
+        border rounded-2xl
+        shadow-sm
         transition-all duration-300 ease-out
-        ${isFocused 
-          ? 'border-slate-900 dark:border-slate-100 shadow-2xl scale-[1.02]' 
-          : 'border-slate-200 dark:border-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-xl'
+        ${isFocused || isActiveFocusTask
+          ? 'border-indigo-300 dark:border-indigo-500/70 shadow-xl shadow-indigo-500/10 -translate-y-0.5'
+          : 'border-slate-200/80 dark:border-slate-800 hover:-translate-y-1 hover:border-slate-300/90 dark:hover:border-slate-700 hover:shadow-xl hover:shadow-slate-200/80 dark:hover:shadow-black/20'
         }
+        ${isActiveFocusTask ? 'ring-2 ring-indigo-500/20 dark:ring-indigo-400/20' : ''}
         ${isCompleted ? 'opacity-60' : ''}
       `}
     >
       {/* HEADER */}
       <div
-        className="flex items-start gap-4 p-5"
+        className="flex items-start gap-4 p-5 sm:p-6"
       >
         {/* Status Checkbox */}
         <div
@@ -152,11 +206,11 @@ const TaskCard = ({
           <button
             onClick={() => toggleTaskStatus(task._id)}
             className={`
-              w-6 h-6 rounded-md border-2 flex items-center justify-center
+              w-6 h-6 rounded-lg border flex items-center justify-center
               transition-all duration-300
               ${isCompleted
                 ? 'bg-slate-900 dark:bg-slate-100 border-slate-900 dark:border-slate-100'
-                : 'border-slate-300 dark:border-slate-600 hover:border-slate-900 dark:hover:border-slate-100 hover:scale-110'
+                : 'border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-400 hover:scale-110'
               }
             `}
           >
@@ -169,7 +223,7 @@ const TaskCard = ({
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           <h3 className={`
-            text-lg font-semibold mb-3 leading-tight
+            text-base font-semibold mb-3 leading-snug sm:text-lg
             ${isCompleted 
               ? 'line-through text-slate-400 dark:text-slate-600' 
               : 'text-slate-900 dark:text-slate-50'
@@ -178,10 +232,10 @@ const TaskCard = ({
             {task.title}
           </h3>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Assignee */}
             {task.assignedTo && (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600/30">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/90 px-2.5 py-1.5 dark:border-slate-700/80 dark:bg-slate-800/60">
                 <Avatar
                   name={task.assignedTo.name}
                   src={task.assignedTo.avatar?.url}
@@ -194,13 +248,13 @@ const TaskCard = ({
             )}
 
             {/* Priority */}
-            <span className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+            <span className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide ${priorityStyles[task.priority] || priorityStyles.medium}`}>
               {task.priority}
             </span>
 
             {/* Deadline */}
             {deadlineStatus && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg">
+              <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 ${deadlineStyles[deadlineStatus.type]}`}>
                 {deadlineStatus.type === 'overdue' && <Icons.AlertCircle />}
                 <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                   {deadlineStatus.label}
@@ -217,8 +271,8 @@ const TaskCard = ({
             onClick={() => openTask(task._id)}
             className="
               p-2 rounded-lg
-              text-slate-600 dark:text-slate-400
-              hover:bg-slate-100 dark:hover:bg-slate-700
+              text-slate-500 dark:text-slate-400
+              hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100
               transition-all duration-200
               hover:scale-110
             "
@@ -236,8 +290,8 @@ const TaskCard = ({
               }}
               className="
                 w-8 h-8 rounded-lg flex items-center justify-center
-                text-slate-600 dark:text-slate-400
-                hover:bg-slate-100 dark:hover:bg-slate-700
+                text-slate-500 dark:text-slate-400
+                hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100
                 transition-all duration-200
               "
             >
@@ -297,16 +351,74 @@ const TaskCard = ({
       </div>
 
       {/* PROGRESS BAR */}
-      <div className="h-1 bg-slate-100 dark:bg-slate-700/30 relative overflow-hidden">
+      <div className="h-1 bg-slate-100/90 dark:bg-slate-800/70 relative overflow-hidden">
         <div
-          className="absolute inset-y-0 left-0 bg-slate-900 dark:bg-slate-100 transition-all duration-700 ease-out"
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-slate-800 to-indigo-500 dark:from-slate-100 dark:to-indigo-300 transition-all duration-700 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
+      {/* FOCUS SESSION CONTROLS */}
+      <div className="px-5 py-4 sm:px-6" onClick={(e) => e.stopPropagation()}>
+        {!isActiveFocusTask ? (
+          <button
+            type="button"
+            onClick={handleStartFocus}
+            disabled={isCompleted || actionLoading}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+          >
+            <Icons.Clock />
+            Start Focus
+          </button>
+        ) : (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/25">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 font-mono text-lg font-semibold text-slate-950 dark:text-slate-50">
+                <Icons.Clock />
+                {formattedElapsed}
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                isFocusPaused
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+              }`}>
+                {isFocusPaused ? "Paused" : "Focusing"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={handlePauseFocus}
+                disabled={isFocusPaused || actionLoading}
+                className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Pause
+              </button>
+              <button
+                type="button"
+                onClick={handleResumeFocus}
+                disabled={!isFocusPaused || actionLoading}
+                className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteFocus}
+                disabled={actionLoading}
+                className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-40 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+              >
+                Complete
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* EXPANDED CONTENT */}
       {expanded && (
-        <div className="p-5 border-t-2 border-slate-100 dark:border-slate-700/50">
+        <div className="p-5 sm:p-6 border-t border-slate-100 dark:border-slate-800">
           {!isEditing ? (
             <div className="space-y-4">
               {/* Description */}
@@ -320,7 +432,7 @@ const TaskCard = ({
 
               {/* Deadline */}
               {task.deadline && (
-                <div className="flex items-center gap-2.5 px-3 py-2 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-600/30 w-fit">
+                <div className="flex items-center gap-2.5 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/70 w-fit">
                   <Icons.Calendar />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     {new Date(task.deadline).toLocaleDateString('en-US', { 

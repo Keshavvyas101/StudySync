@@ -52,7 +52,7 @@ const Workspace = () => {
     replaceTask,
   } = useTasks();
 
-  const { workspaceMode, setWorkspaceMode } = useUI();
+  const { workspaceMode, setWorkspaceMode, openChat } = useUI();
 
   const fileInputRef = useRef(null);
   const [filter, setFilter] = useState("all");
@@ -68,9 +68,11 @@ const Workspace = () => {
   const [newTaskForm, setNewTaskForm] = useState(createEmptyTaskForm);
   const [creatingTask, setCreatingTask] = useState(false);
   const [createTaskError, setCreateTaskError] = useState("");
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   const ownerId = activeRoom?.owner?._id || activeRoom?.owner;
   const isOwner = Boolean(user?._id && ownerId && user._id === ownerId);
+  const isPersonalRoom = Boolean(activeRoom?.isPersonal || activeRoom?.type === "personal");
 
   useEffect(() => {
     if (activeRoom?._id) fetchTasks(activeRoom._id);
@@ -83,6 +85,7 @@ const Workspace = () => {
     setNewTaskOpen(false);
     setNewTaskForm(createEmptyTaskForm());
     setCreateTaskError("");
+    setCopilotOpen(false);
   }, [activeRoom?._id]);
 
   const handleCopyInviteCode = async () => {
@@ -212,8 +215,11 @@ const Workspace = () => {
   /* ---------------- EMPTY ROOM ---------------- */
   if (!activeRoom) {
     return (
-      <div className="workspace flex items-center justify-center text-slate-400 dark:text-slate-500">
-        Select a room to see tasks
+      <div className="workspace flex items-center justify-center bg-slate-50 text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-5 py-4 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
+          Preparing your study space...
+        </div>
       </div>
     );
   }
@@ -224,7 +230,7 @@ const Workspace = () => {
       {workspaceMode === "tasks" && (
         <>
           {/* ================= HEADER ================= */}
-          <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+          <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl">
             <div className="px-6 pt-6 pb-4 space-y-4">
 
               {/* Room title + contextual actions */}
@@ -240,20 +246,24 @@ const Workspace = () => {
                       {activeRoom.name}
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {members.length} {members.length === 1 ? "member" : "members"}
+                      {isPersonalRoom
+                        ? "Personal workspace"
+                        : `${members.length} ${members.length === 1 ? "member" : "members"}`}
                     </p>
                   </div>
                 </div>
 
                 <div className="relative flex items-center gap-2 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setMembersOpen(true)}
-                    className="h-9 px-3 flex items-center gap-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition"
-                  >
-                    <UsersIcon />
-                    Members
-                  </button>
+                  {!isPersonalRoom && (
+                    <button
+                      type="button"
+                      onClick={() => setMembersOpen(true)}
+                      className="h-9 px-3 flex items-center gap-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition"
+                    >
+                      <UsersIcon />
+                      Members
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -267,21 +277,34 @@ const Workspace = () => {
                   {settingsOpen && (
                     <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
                       <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          Invite People
-                        </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="flex-1 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono text-sm text-indigo-600 dark:text-indigo-400 select-all">
-                            {activeRoom.inviteCode}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleCopyInviteCode}
-                            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
-                          >
-                            {copiedInvite ? "Copied" : "Copy"}
-                          </button>
-                        </div>
+                        {isPersonalRoom ? (
+                          <>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              Personal Workspace
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                              This private room is only visible to you.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              Invite People
+                            </div>
+                            <div className="mt-3 flex items-center gap-2">
+                              <div className="flex-1 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono text-sm text-indigo-600 dark:text-indigo-400 select-all">
+                                {activeRoom.inviteCode}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleCopyInviteCode}
+                                className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
+                              >
+                                {copiedInvite ? "Copied" : "Copy"}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       <div className="p-2">
@@ -306,7 +329,7 @@ const Workspace = () => {
                           </button>
                         )}
 
-                        {isOwner && (
+                        {isOwner && !isPersonalRoom && (
                           <button
                             type="button"
                             onClick={handleDeleteRoom}
@@ -452,29 +475,107 @@ const Workspace = () => {
           )}
 
           {/* ================= CONTENT ================= */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 pb-28">
-            <CopilotHero
-              activeRoom={activeRoom}
-              tasks={tasks}
-              currentUser={user}
-              createTask={createTask}
-              replaceTask={replaceTask}
-              onFocusTask={expandTask}
-            />
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-8 pb-32 sm:px-8">
+            <div className="mx-auto mb-7 flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  {activeRoom.name}
+                </div>
+                <h3 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">
+                  Your Tasks
+                </h3>
+              </div>
+              <div className="rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-sm font-medium text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+                {filteredTasks.length} visible {filteredTasks.length === 1 ? "task" : "tasks"}
+              </div>
+            </div>
 
             {loading && (
-              <div className="mt-6 text-slate-400 text-sm">Loading tasks...</div>
+              <div className="mx-auto mt-6 max-w-6xl text-sm text-slate-400">Loading tasks...</div>
             )}
 
-            {!loading && filteredTasks.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-24 text-center text-slate-400">
-                <div className="text-lg font-medium">No tasks found</div>
-                <div className="text-sm">Try changing filters or create one</div>
+            {!loading && tasks.length === 0 && (
+              <div className="mx-auto flex min-h-[520px] w-full max-w-5xl items-center justify-center px-2">
+                <div className="w-full rounded-3xl border border-slate-200/80 bg-white/90 p-6 text-center shadow-2xl shadow-slate-900/8 backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/80 dark:shadow-black/30 sm:p-10">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-xl shadow-slate-950/15 dark:bg-slate-100 dark:text-slate-950">
+                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12.75L11.25 15 15 9.75M6.75 4.5h10.5A2.25 2.25 0 0119.5 6.75v10.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25V6.75A2.25 2.25 0 016.75 4.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="mt-6 text-3xl font-semibold tracking-normal text-slate-950 dark:text-slate-50">
+                    Welcome back.
+                  </h3>
+                  <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-slate-500 dark:text-slate-400">
+                    Your study space is ready. Start building momentum.
+                  </p>
+
+                  <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+                    {[
+                      ["Today's Focus", "0h"],
+                      ["Pending Tasks", "0"],
+                      ["Weekly Streak", "0"],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-2xl border border-slate-200 bg-slate-50/80 px-5 py-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/60"
+                      >
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                          {label}
+                        </div>
+                        <div className="mt-2 text-2xl font-semibold text-slate-950 dark:text-slate-50">
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateTaskError("");
+                        setNewTaskOpen(true);
+                      }}
+                      className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+                    >
+                      + Create First Task
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
+                    >
+                      Create a Task to Focus
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCopilotOpen(true);
+                        openChat();
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-800 dark:hover:text-indigo-300"
+                    >
+                      Ask Study Copilot
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!loading && tasks.length > 0 && filteredTasks.length === 0 && (
+              <div className="mx-auto flex max-w-xl flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white/60 px-8 py-20 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                  </svg>
+                </div>
+                <div className="mt-4 text-lg font-semibold text-slate-800 dark:text-slate-100">No matching tasks</div>
+                <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Adjust filters to bring work back into view.</div>
               </div>
             )}
 
             {/* Task grid */}
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {filteredTasks.map((task) => (
                 <TaskCard
                   key={task._id}
@@ -542,19 +643,21 @@ const Workspace = () => {
           )}
 
           {/* ================= FLOATING ACTION ================= */}
-          <button
-            onClick={() => {
-              setCreateTaskError("");
-              setNewTaskOpen(true);
-            }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2
-              px-6 py-2 rounded-xl
-              bg-indigo-600 hover:bg-indigo-700
-              text-white font-medium
-              shadow-xl transition"
-          >
-            + New Task
-          </button>
+          {tasks.length > 0 && (
+            <button
+              onClick={() => {
+                setCreateTaskError("");
+                setNewTaskOpen(true);
+              }}
+              className="fixed bottom-6 left-1/2 -translate-x-1/2
+                px-6 py-2 rounded-xl
+                bg-indigo-600 hover:bg-indigo-700
+                text-white font-medium
+                shadow-xl transition"
+            >
+              + New Task
+            </button>
+          )}
 
           {newTaskOpen && (
             <div
@@ -696,6 +799,49 @@ const Workspace = () => {
             </button>
           </div>
           <AnalyticsPanel />
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setCopilotOpen(true)}
+        className="fixed bottom-6 right-6 z-40 rounded-full border border-slate-200/80 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-2xl shadow-slate-950/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-indigo-500/25 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+      >
+        Ask Study Copilot
+      </button>
+
+      {copilotOpen && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm"
+          onClick={() => setCopilotOpen(false)}
+        >
+          <div
+            className="h-full w-full overflow-hidden bg-white shadow-2xl shadow-slate-950/30 dark:bg-slate-950 sm:max-w-[420px] sm:border-l sm:border-slate-200 sm:dark:border-slate-800"
+            style={{ animation: "studyCopilotDrawerIn 180ms ease-out" }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <CopilotHero
+              activeRoom={activeRoom}
+              tasks={tasks}
+              currentUser={user}
+              createTask={createTask}
+              replaceTask={replaceTask}
+              onFocusTask={expandTask}
+              onClose={() => setCopilotOpen(false)}
+            />
+          </div>
+          <style>{`
+            @keyframes studyCopilotDrawerIn {
+              from {
+                opacity: 0;
+                transform: translateX(32px);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(0);
+              }
+            }
+          `}</style>
         </div>
       )}
     </div>

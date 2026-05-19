@@ -9,6 +9,7 @@ import NotificationDropdown from "../../components/NotificationDropdown";
 import Avatar from "../../components/common/Avatar";
 import api from "../../services/api";
 import { useUI } from "../../context/UIContext";
+import GlobalFocusTimer from "./GlobalFocusTimer";
 import "./layout.css";
 
 const Topbar = () => {
@@ -31,10 +32,10 @@ const Topbar = () => {
   const { unreadCount } = useNotifications();
 
   /* ===============================
-     CLOSE DROPDOWNS ON OUTSIDE CLICK
+     CLOSE DROPDOWNS ON OUTSIDE MOUSEDOWN
      =============================== */
   useEffect(() => {
-    const handleClick = (e) => {
+    const handleMouseDown = (e) => {
       if (
         notifRef.current &&
         !notifRef.current.contains(e.target)
@@ -50,9 +51,9 @@ const Topbar = () => {
       }
     };
 
-    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", handleMouseDown);
     return () =>
-      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("mousedown", handleMouseDown);
   }, []);
 
   const handleLogout = async () => {
@@ -95,25 +96,28 @@ const Topbar = () => {
 
 
   return (
-    <header className="topbar">
+    <header className="topbar relative z-50 shrink-0 bg-white/85 dark:bg-slate-950/85 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl">
       {/* LEFT */}
       <div className="flex items-center gap-3">
-        <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <span className="text-lg font-semibold text-slate-950 dark:text-slate-50">
           StudySync
         </span>
+        <GlobalFocusTimer />
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-4 relative">
+      <div className="flex items-center gap-3 relative">
         {/* ================= NOTIFICATIONS ================= */}
         <div ref={notifRef} className="relative">
           
           <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setNotifOpen((v) => !v)}
             className="relative h-9 w-9 flex items-center justify-center rounded-full
-                       bg-slate-100 hover:bg-slate-200
-                       dark:bg-slate-800 dark:hover:bg-slate-700
-                       transition"
+                       bg-slate-100/80 hover:bg-slate-200
+                       dark:bg-slate-900 dark:hover:bg-slate-800
+                       transition-all duration-200 hover:-translate-y-0.5"
           >
             🔔
           </button>
@@ -136,11 +140,11 @@ const Topbar = () => {
        {/* ================= CHAT ================= */}
 <button
   onClick={openChat}
-  className="h-9 px-3 flex items-center gap-1 rounded-lg
-             bg-slate-100 hover:bg-slate-200
-             dark:bg-slate-800 dark:hover:bg-slate-700
+  className="h-9 px-3 flex items-center gap-1 rounded-full
+             bg-slate-100/80 hover:bg-slate-200
+             dark:bg-slate-900 dark:hover:bg-slate-800
              text-sm font-medium text-slate-700 dark:text-slate-200
-             transition"
+             transition-all duration-200 hover:-translate-y-0.5"
 >
   💬 Chat
 </button>
@@ -148,11 +152,11 @@ const Topbar = () => {
 {/* ================= ANALYTICS ================= */}
 <button
   onClick={() => setWorkspaceMode("analytics")}
-  className="h-9 px-3 flex items-center gap-1 rounded-lg
-             bg-slate-100 hover:bg-slate-200
-             dark:bg-slate-800 dark:hover:bg-slate-700
+  className="h-9 px-3 flex items-center gap-1 rounded-full
+             bg-slate-100/80 hover:bg-slate-200
+             dark:bg-slate-900 dark:hover:bg-slate-800
              text-sm font-medium text-slate-700 dark:text-slate-200
-             transition"
+             transition-all duration-200 hover:-translate-y-0.5"
 >
   📊 Analytics
 </button>
@@ -163,8 +167,9 @@ const Topbar = () => {
         <button
           onClick={toggleTheme}
           className="h-9 w-9 flex items-center justify-center rounded-full
-                     bg-slate-100 hover:bg-slate-200
-                     dark:bg-slate-800 dark:hover:bg-slate-700"
+                     bg-slate-100/80 hover:bg-slate-200
+                     dark:bg-slate-900 dark:hover:bg-slate-800
+                     transition-all duration-200 hover:-translate-y-0.5"
         >
           {theme === "dark" ? "🌞" : "🌙"}
         </button>
@@ -172,9 +177,11 @@ const Topbar = () => {
         {/* ================= PROFILE ================= */}
         <div ref={profileRef} className="relative">
           <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setProfileOpen((v) => !v)}
             className="flex items-center gap-2 pl-3
-                       border-l border-slate-200 dark:border-slate-700"
+                       border-l border-slate-200 dark:border-slate-800"
           >
            <Avatar
   name={user?.name}
@@ -188,9 +195,9 @@ const Topbar = () => {
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-3 w-56 rounded-xl shadow-xl
-                            bg-white dark:bg-slate-900
-                            border border-slate-200 dark:border-slate-800 z-50">
+            <div className="absolute right-0 mt-3 w-56 rounded-2xl shadow-2xl shadow-slate-900/10
+                            bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl
+                            border border-slate-200/80 dark:border-slate-800 z-50 overflow-hidden">
               {/* HEADER */}
               <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">

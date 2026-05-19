@@ -24,7 +24,8 @@ export const deleteTaskApi = async (taskId) => {
 };
 
 export const toggleTaskStatusApi = async (taskId) => {
-  await api.patch(`/tasks/${taskId}/status`);
+  const res = await api.patch(`/tasks/${taskId}/status`);
+  return res.data.task;
 };
 
 /* ======================

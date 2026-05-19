@@ -1,6 +1,7 @@
 import { registerUser, loginUser } from "../services/authService.js";
 import generateToken from "../utils/generateToken.js";
 import { checkDueSoonTasksForUser } from "../services/dueSoonService.js";
+import { ensurePersonalWorkspaceForUser } from "../services/personalWorkspaceService.js";
 /**
  * @desc Register new user
  * @route POST /api/auth/register
@@ -24,6 +25,7 @@ export const register = async (req, res) => {
     });
 
     const token = generateToken(user._id);
+    await ensurePersonalWorkspaceForUser(user._id);
 
     res.cookie("token", token, {
   httpOnly: true,
@@ -65,6 +67,7 @@ export const login = async (req, res) => {
     const user = await loginUser({ email, password });
 
     const token = generateToken(user._id);
+    await ensurePersonalWorkspaceForUser(user._id);
 
     res.cookie("token", token, {
   httpOnly: true,
@@ -85,8 +88,12 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(401).json({ message: error.message });
-  }
+  console.error("LOGIN FAILED:", error);
+
+  res.status(500).json({
+    message: error.message,
+  });
+}
 };
 
 /**

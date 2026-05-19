@@ -68,6 +68,15 @@ export const UIProvider = ({ children }) => {
     setIsFocusOpen(true);
   };
 
+  const openFocusSession = (taskId = null) => {
+    if (taskId) {
+      setFocusedTaskId(taskId);
+    }
+    setFocusMode("focus");
+    setFocusSize("narrow");
+    setIsFocusOpen(true);
+  };
+
   const closeFocus = () => {
     setIsFocusOpen(false);
   };
@@ -88,6 +97,7 @@ export const UIProvider = ({ children }) => {
 
         openTask,
         openChat,
+        openFocusSession,
         closeFocus,
         toggleFocus,
 

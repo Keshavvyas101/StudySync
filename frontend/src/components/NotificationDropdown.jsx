@@ -90,19 +90,6 @@ const NotificationDropdown = ({ onClose }) => {
   const hasUnread = notifications.some((n) => !n.read);
 
   /* ===============================
-     CLOSE ON OUTSIDE CLICK
-     =============================== */
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-
-  /* ===============================
      SCROLL LOAD MORE
      =============================== */
   const handleScroll = () => {

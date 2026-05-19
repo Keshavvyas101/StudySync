@@ -16,6 +16,19 @@ const roomSchema = new mongoose.Schema(
       maxlength: 200,
     },
 
+    type: {
+      type: String,
+      enum: ["collaborative", "personal"],
+      default: "collaborative",
+      index: true,
+    },
+
+    isPersonal: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -50,6 +63,14 @@ const roomSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+  }
+);
+
+roomSchema.index(
+  { owner: 1, isPersonal: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isPersonal: true },
   }
 );
 

@@ -5,6 +5,7 @@ import Message from "../models/Message.js";
 import Room from "../models/Room.js";
 import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
+import { ensurePersonalWorkspaceForUser } from "../services/personalWorkspaceService.js";
 
 /* ============================
    CREATE ROOM
@@ -24,6 +25,8 @@ export const createRoom = async (req, res) => {
     const room = await Room.create({
       name,
       description,
+      type: "collaborative",
+      isPersonal: false,
       owner: req.user._id,
       members: [req.user._id],
       inviteCode,
@@ -60,6 +63,12 @@ export const joinRoom = async (req, res) => {
     if (!room) {
       return res.status(404).json({
         message: "Invalid invite code",
+      });
+    }
+
+    if (room.isPersonal) {
+      return res.status(400).json({
+        message: "Personal workspaces cannot be joined by invite",
       });
     }
 
@@ -102,9 +111,13 @@ export const joinRoom = async (req, res) => {
 ============================ */
 export const getMyRooms = async (req, res) => {
   try {
+    await ensurePersonalWorkspaceForUser(req.user._id);
+
     const rooms = await Room.find({
       members: req.user._id,
-    }).populate("owner", "name email avatar");
+    })
+      .populate("owner", "name email avatar")
+      .sort({ isPersonal: -1, updatedAt: -1 });
 
     res.status(200).json({ rooms });
   } catch (error) {
@@ -133,6 +146,12 @@ export const leaveRoom = async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.isPersonal) {
+      return res.status(400).json({
+        message: "Personal workspace cannot be left",
+      });
     }
 
     if (room.owner._id.toString() === req.user._id.toString()) {
@@ -311,6 +330,12 @@ export const deleteRoom = async (req, res) => {
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (room.isPersonal) {
+      return res.status(400).json({
+        message: "Personal workspace cannot be deleted",
+      });
     }
 
     if (room.owner.toString() !== req.user._id.toString()) {

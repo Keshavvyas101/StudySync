@@ -83,6 +83,18 @@ const taskSchema = new mongoose.Schema(
       default: "medium",
     },
 
+    tags: {
+      type: [String],
+      default: [],
+      set: (tags) =>
+        Array.isArray(tags)
+          ? tags
+              .map((tag) => tag?.toString().trim())
+              .filter(Boolean)
+              .slice(0, 10)
+          : [],
+    },
+
     recurrence: {
       type: String,
       trim: true,

@@ -4,6 +4,7 @@ import Task from "../models/Task.js";
 import Room from "../models/Room.js";
 import { createNotification } from "../services/notificationService.js";
 import { logActivity } from "../services/activityService.js";
+import { completeActiveSessionsForTask } from "../services/studySessionService.js";
 
 
 import {
@@ -19,7 +20,7 @@ import {
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { title, description, deadline, assignedTo, priority, recurrence } = req.body;
+    const { title, description, deadline, assignedTo, priority, recurrence, tags } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json({ message: "Task title is required" });
@@ -47,6 +48,7 @@ export const createTask = async (req, res) => {
       createdBy: req.user._id,
       priority: priority || "medium",
       recurrence: recurrence || null,
+      tags: Array.isArray(tags) ? tags : [],
     });
     // 📘 Activity log
 await logActivity(req.user._id, roomId, "task_created", {
@@ -138,6 +140,10 @@ export const updateTask = async (req, res) => {
     Object.assign(task, updates);
     await task.save();
 
+    if (task.status === "completed") {
+      await completeActiveSessionsForTask(task._id);
+    }
+
     const recipients = getTaskRecipients(task, room, userId);
 
     for (const uid of recipients) {
@@ -203,6 +209,10 @@ export const toggleTaskStatus = async (req, res) => {
 
     await task.save();
 
+    if (task.status === "completed") {
+      await completeActiveSessionsForTask(task._id);
+    }
+
     // 🔔 Notify only on transition to completed
     if (!wasCompleted && task.status === "completed") {
       // 📘 Activity log
@@ -225,7 +235,8 @@ await logActivity(req.user._id, task.room, "task_completed", {
       }
     }
 
-    res.status(200).json({ task });
+    const populated = await populateTask(task._id);
+    res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Toggle task error:", err);
     res.status(500).json({ message: "Failed to toggle status" });

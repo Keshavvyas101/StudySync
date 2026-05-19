@@ -36,8 +36,9 @@ export const RoomProvider = ({ children }) => {
         const restoredRoom = roomList.find(
           (r) => r._id === savedRoomId
         );
+        const personalRoom = roomList.find((r) => r.isPersonal);
 
-        return restoredRoom || roomList[0] || null;
+        return restoredRoom || personalRoom || roomList[0] || null;
       });
     } catch (err) {
       console.error("Failed to fetch rooms", err);

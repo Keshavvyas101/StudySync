@@ -4,6 +4,7 @@ import Task from "../models/Task.js";
 import Room from "../models/Room.js";
 import { createNotification } from "../services/notificationService.js";
 import { logActivity } from "../services/activityService.js";
+import { completeActiveSessionsForTask } from "../services/studySessionService.js";
 
 
 import {
@@ -114,6 +115,10 @@ if (subtask.isCompleted) {
 
     await task.save();
 
+    if (task.status === "completed") {
+      await completeActiveSessionsForTask(task._id);
+    }
+
     const populated = await populateTask(task._id);
     res.status(200).json({ task: populated });
   } catch (err) {
@@ -150,6 +155,10 @@ export const updateSubtask = async (req, res) => {
     syncTaskStatusWithSubtasks(task);
     await task.save();
 
+    if (task.status === "completed") {
+      await completeActiveSessionsForTask(task._id);
+    }
+
     const populated = await populateTask(task._id);
     res.status(200).json({ task: populated });
   } catch (err) {
@@ -182,6 +191,10 @@ export const deleteSubtask = async (req, res) => {
     syncTaskStatusWithSubtasks(task);
 
     await task.save();
+
+    if (task.status === "completed") {
+      await completeActiveSessionsForTask(task._id);
+    }
 
     const populated = await populateTask(task._id);
     res.status(200).json({ task: populated });
