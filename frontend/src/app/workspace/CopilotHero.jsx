@@ -108,8 +108,18 @@ const getDraftTitle = (draft) => {
   if (draft.actionType === "CREATE_TASK") return "Create Task";
   if (draft.actionType === "COMPLETE_OWN_TASK") return "Complete Task";
   if (draft.actionType === "START_FOCUS_SESSION") return "Start Focus Session";
+  if (draft.actionType === "ASSIGN_TASK") return "Assign Task";
+  if (draft.actionType === "RESCHEDULE_TASK") return "Reschedule Task";
+  if (draft.actionType === "CREATE_SUBTASKS") return "Create Subtasks";
+  if (draft.actionType === "ARCHIVE_TASK") return "Archive Task";
   return "Action draft";
 };
+
+const SAFE_TRUST_ACTIONS = new Set([
+  "CREATE_TASK",
+  "COMPLETE_OWN_TASK",
+  "START_FOCUS_SESSION",
+]);
 
 const getDraftRows = (draft) => {
   if (!draft) return [];
@@ -123,6 +133,31 @@ const getDraftRows = (draft) => {
     ];
   }
 
+  if (draft.actionType === "ASSIGN_TASK") {
+    return [
+      ["Task", payload.matchedTask?.title || payload.taskId],
+      ["Assign to", payload.targetUser?.name || payload.targetUserId],
+    ];
+  }
+
+  if (draft.actionType === "RESCHEDULE_TASK") {
+    return [
+      ["Task", payload.matchedTask?.title || payload.taskId],
+      ["New deadline", formatDraftDate(payload.newDeadline)],
+    ];
+  }
+
+  if (draft.actionType === "CREATE_SUBTASKS") {
+    return [
+      ["Task", payload.matchedTask?.title || payload.taskId],
+      ["Subtasks", Array.isArray(payload.subtasks) ? payload.subtasks.join(", ") : ""],
+    ];
+  }
+
+  if (draft.actionType === "ARCHIVE_TASK") {
+    return [["Task", payload.matchedTask?.title || payload.taskId]];
+  }
+
   return [
     ["Task", payload.matchedTask?.title || payload.taskId || "No matching task"],
   ];
@@ -133,11 +168,13 @@ const ApprovalCard = ({
   busy,
   feedback,
   onApprove,
+  onAlwaysAllow,
   onDeny,
 }) => {
   if (!draft) return null;
 
   const isFinal = ["executed", "denied", "invalid", "failed"].includes(draft.status);
+  const canAlwaysAllow = SAFE_TRUST_ACTIONS.has(draft.actionType);
 
   return (
     <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/25">
@@ -183,8 +220,18 @@ const ApprovalCard = ({
             disabled={busy}
             className="flex-1 rounded-xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
           >
-            {busy ? "Working..." : "Approve"}
+            {busy ? "Working..." : "Allow once"}
           </button>
+          {canAlwaysAllow && (
+            <button
+              type="button"
+              onClick={onAlwaysAllow}
+              disabled={busy}
+              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            >
+              Always allow
+            </button>
+          )}
           <button
             type="button"
             onClick={onDeny}
@@ -320,7 +367,10 @@ const CopilotHero = ({
 
   const taskCount = useMemo(
     () =>
-      tasks.filter((task) => task.status !== "completed" && isMeaningfulTask(task))
+      tasks.filter(
+        (task) =>
+          task.status !== "completed" && !task.archived && isMeaningfulTask(task)
+      )
         .length,
     [tasks]
   );
@@ -379,6 +429,16 @@ const CopilotHero = ({
         return;
       }
 
+      const executedTask = res.data?.result?.task;
+      const executedSession = res.data?.result?.session;
+      if (executedTask?._id) {
+        replaceTask(executedTask);
+        onFocusTask?.(executedTask._id);
+      }
+      if (executedSession?._id) {
+        await refreshActiveSession();
+      }
+
       setResult(res.data);
       setProactiveInsights(res.data?.context?.proactiveInsights || []);
       setHeaderInsight(res.data?.insight?.headerContext?.label || headerInsight);
@@ -391,13 +451,23 @@ const CopilotHero = ({
   };
 
   const handleApproveDraft = async () => {
+    return handleApproveDraftWithTrust(false);
+  };
+
+  const handleAlwaysAllowDraft = async () => {
+    return handleApproveDraftWithTrust(true);
+  };
+
+  const handleApproveDraftWithTrust = async (alwaysAllow) => {
     const draft = result?.draftAction || result?.insight?.draftAction;
     if (!draft?.id || actionBusy) return;
 
     try {
       setActionBusy(true);
       setActionFeedback("");
-      const res = await api.post(`/ai/actions/${draft.id}/approve`);
+      const res = await api.post(`/ai/actions/${draft.id}/approve`, {
+        alwaysAllow,
+      });
       const updatedDraft = res.data?.draftAction;
       const task = res.data?.result?.task;
       const session = res.data?.result?.session;
@@ -419,7 +489,7 @@ const CopilotHero = ({
           draftAction: updatedDraft || current?.insight?.draftAction,
         },
       }));
-      setActionFeedback("Approved and executed.");
+      setActionFeedback(res.data?.trustSaved ? "Approved, executed, and saved." : "Approved and executed.");
     } catch (err) {
       const message = err.response?.data?.message || "Action could not be executed";
       setActionFeedback(message);
@@ -558,6 +628,7 @@ const CopilotHero = ({
             busy={actionBusy}
             feedback={actionFeedback}
             onApprove={handleApproveDraft}
+            onAlwaysAllow={handleAlwaysAllowDraft}
             onDeny={handleDenyDraft}
           />
         </div>

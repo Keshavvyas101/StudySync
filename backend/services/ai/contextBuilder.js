@@ -52,7 +52,7 @@ export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
   const room = await ensureWorkspaceAccess(roomId, userId);
 
   const [tasks, sessions, aiProfile] = await Promise.all([
-    Task.find({ room: room._id })
+    Task.find({ room: room._id, archived: { $ne: true } })
       .populate("assignedTo", "name email avatar")
       .sort({ createdAt: -1 })
       .limit(200),

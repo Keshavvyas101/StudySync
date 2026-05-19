@@ -4,8 +4,10 @@ import api from "./api";
    TASK APIs
 ====================== */
 
-export const fetchTasksApi = async (roomId, limit = 10, skip = 0) => {
-  const res = await api.get(`/tasks/${roomId}?limit=${limit}&skip=${skip}`);
+export const fetchTasksApi = async (roomId, limit = 10, skip = 0, includeArchived = false) => {
+  const res = await api.get(
+    `/tasks/${roomId}?limit=${limit}&skip=${skip}&includeArchived=${includeArchived}`
+  );
   return res.data.tasks || [];
 };
 

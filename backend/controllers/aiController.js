@@ -10,6 +10,11 @@ import {
 } from "../services/Ai.js";
 import { buildAIContext } from "../services/ai/contextBuilder.js";
 import AIResponseAudit from "../models/AIResponseAudit.js";
+import AITrustPermission from "../models/AITrustPermission.js";
+import {
+  executeApprovedDraft,
+  isTrustSafeAction,
+} from "./aiActionController.js";
 import {
   buildActionBoundaryReply,
   createActionDraftFromQuery,
@@ -431,6 +436,59 @@ export const copilot = async (req, res) => {
         query: routerResult.originalQuery,
         draft,
       });
+
+      if (draft && isTrustSafeAction(draft.actionType)) {
+        const trust = await AITrustPermission.findOne({
+          user: req.user._id,
+          workspace: room._id,
+          actionType: draft.actionType,
+          allowed: true,
+        }).lean();
+
+        if (trust) {
+          try {
+            const execution = await executeApprovedDraft({
+              draft,
+              userId: req.user._id,
+              permissionMode: "trust_bypass",
+              trustBypass: true,
+            });
+
+            insight.recommendation = "I handled that using your saved permission.";
+            insight.draftAction = execution.draftAction;
+
+            await saveResponseAudit({
+              userId: req.user._id,
+              workspaceId: room._id,
+              routerResult,
+              responseStyle,
+              sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+              draftAction: execution.draftAction,
+            });
+
+            return res.status(200).json({
+              success: true,
+              originalQuery: routerResult.originalQuery,
+              route: routerResult.route,
+              router: routerResult,
+              responseStyle,
+              sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+              llmUsed: false,
+              studySyncDataUsed: false,
+              trustBypass: true,
+              draftAction: execution.draftAction,
+              result: execution.result,
+              insight,
+            });
+          } catch (error) {
+            return res.status(error.status || 400).json({
+              success: false,
+              message: error.message,
+              draftAction: error.draftAction || toClientDraft(draft),
+            });
+          }
+        }
+      }
 
       await saveResponseAudit({
         userId: req.user._id,

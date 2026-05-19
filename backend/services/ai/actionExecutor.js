@@ -109,6 +109,112 @@ export const executeStartFocusSession = async ({ userId, workspace, task }) => {
   };
 };
 
+export const executeAssignTask = async ({ draft, task, userId }) => {
+  if (!task?._id) {
+    const error = new Error("Validated task is required for ASSIGN_TASK.");
+    error.status = 500;
+    throw error;
+  }
+  const beforeState = compactTaskState(task);
+  task.assignedTo = draft.payload.targetUserId;
+  await task.save();
+  await logActivity(userId, task.room, "task_assigned", {
+    taskId: task._id,
+    title: task.title,
+    assignedTo: draft.payload.targetUserId,
+    source: "jarvis_action",
+  });
+  const populated = await populateTask(task._id);
+  return {
+    beforeState,
+    afterState: compactTaskState(populated),
+    result: { task: populated },
+  };
+};
+
+export const executeRescheduleTask = async ({ draft, task, userId }) => {
+  if (!task?._id) {
+    const error = new Error("Validated task is required for RESCHEDULE_TASK.");
+    error.status = 500;
+    throw error;
+  }
+  const beforeState = compactTaskState(task);
+  task.deadline = draft.payload.newDeadline;
+  await task.save();
+  await logActivity(userId, task.room, "task_updated", {
+    taskId: task._id,
+    title: task.title,
+    source: "jarvis_action",
+  });
+  const populated = await populateTask(task._id);
+  return {
+    beforeState,
+    afterState: compactTaskState(populated),
+    result: { task: populated },
+  };
+};
+
+export const executeCreateSubtasks = async ({ task, userId, subtasks }) => {
+  if (!task?._id) {
+    const error = new Error("Validated task is required for CREATE_SUBTASKS.");
+    error.status = 500;
+    throw error;
+  }
+  if (!Array.isArray(subtasks) || subtasks.length === 0) {
+    const error = new Error("Validated subtasks are required for CREATE_SUBTASKS.");
+    error.status = 500;
+    throw error;
+  }
+
+  const beforeState = compactTaskState(task);
+  task.subtasks.push(
+    ...subtasks.map((title) => ({
+      title,
+      assignedTo: null,
+      deadline: null,
+      isCompleted: false,
+      completedAt: null,
+    }))
+  );
+  await task.save();
+  await logActivity(userId, task.room, "subtasks_created", {
+    taskId: task._id,
+    title: task.title,
+    count: subtasks.length,
+    source: "jarvis_action",
+  });
+  const populated = await populateTask(task._id);
+  return {
+    beforeState,
+    afterState: compactTaskState(populated),
+    result: { task: populated },
+  };
+};
+
+export const executeArchiveTask = async ({ task, userId }) => {
+  if (!task?._id) {
+    const error = new Error("Validated task is required for ARCHIVE_TASK.");
+    error.status = 500;
+    throw error;
+  }
+  const beforeState = compactTaskState(task);
+  task.archived = true;
+  task.archivedAt = new Date();
+  await task.save();
+  await completeActiveSessionsForTask(task._id);
+  await logActivity(userId, task.room, "task_archived", {
+    taskId: task._id,
+    title: task.title,
+    source: "jarvis_action",
+  });
+  const populated = await populateTask(task._id);
+  return {
+    beforeState,
+    afterState: compactTaskState(populated),
+    result: { task: populated },
+  };
+};
+
 export const executeActionDraft = async ({ draft, userId, validation }) => {
   switch (draft.actionType) {
     case "CREATE_TASK":
@@ -127,6 +233,29 @@ export const executeActionDraft = async ({ draft, userId, validation }) => {
         userId,
         workspace: validation.entities.workspace,
         task: validation.entities.task,
+      });
+    case "ASSIGN_TASK":
+      return executeAssignTask({
+        draft,
+        task: validation.entities.task,
+        userId,
+      });
+    case "RESCHEDULE_TASK":
+      return executeRescheduleTask({
+        draft,
+        task: validation.entities.task,
+        userId,
+      });
+    case "CREATE_SUBTASKS":
+      return executeCreateSubtasks({
+        task: validation.entities.task,
+        userId,
+        subtasks: validation.entities.subtasks,
+      });
+    case "ARCHIVE_TASK":
+      return executeArchiveTask({
+        task: validation.entities.task,
+        userId,
       });
     default: {
       const error = new Error("Unsupported action type.");

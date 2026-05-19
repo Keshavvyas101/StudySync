@@ -107,6 +107,17 @@ const taskSchema = new mongoose.Schema(
       default: false,
     },
 
+    archived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+
     // ✅ NEW: Subtasks (safe default)
    subtasks: [
   {

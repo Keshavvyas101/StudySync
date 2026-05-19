@@ -54,6 +54,17 @@ const aiActionAuditSchema = new mongoose.Schema(
       default: null,
       maxlength: 1000,
     },
+    permissionMode: {
+      type: String,
+      enum: ["approval", "trust_bypass"],
+      default: "approval",
+      required: true,
+    },
+    trustBypass: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
     timestamp: {
       type: Date,
       required: true,

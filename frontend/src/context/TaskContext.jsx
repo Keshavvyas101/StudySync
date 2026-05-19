@@ -24,12 +24,17 @@ export const TaskProvider = ({ children }) => {
      FETCH TASKS
   ====================== */
 
-  const fetchTasks = async (roomId) => {
+  const fetchTasks = async (roomId, options = {}) => {
     if (!roomId) return;
     setLoading(true);
 
     try {
-      const data = await fetchTasksApi(roomId, PAGE_SIZE, 0);
+      const data = await fetchTasksApi(
+        roomId,
+        PAGE_SIZE,
+        0,
+        Boolean(options.includeArchived)
+      );
       setTasks(data);
       setPage(0);
       setHasMore(data.length === PAGE_SIZE);
@@ -42,7 +47,7 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const loadMoreTasks = async (roomId) => {
+  const loadMoreTasks = async (roomId, options = {}) => {
     if (!roomId || !hasMore || loading) return;
 
     setLoading(true);
@@ -52,7 +57,8 @@ export const TaskProvider = ({ children }) => {
       const data = await fetchTasksApi(
         roomId,
         PAGE_SIZE,
-        nextPage * PAGE_SIZE
+        nextPage * PAGE_SIZE,
+        Boolean(options.includeArchived)
       );
 
       setTasks((prev) => [...prev, ...data]);

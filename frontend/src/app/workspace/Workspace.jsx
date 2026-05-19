@@ -69,14 +69,15 @@ const Workspace = () => {
   const [creatingTask, setCreatingTask] = useState(false);
   const [createTaskError, setCreateTaskError] = useState("");
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const ownerId = activeRoom?.owner?._id || activeRoom?.owner;
   const isOwner = Boolean(user?._id && ownerId && user._id === ownerId);
   const isPersonalRoom = Boolean(activeRoom?.isPersonal || activeRoom?.type === "personal");
 
   useEffect(() => {
-    if (activeRoom?._id) fetchTasks(activeRoom._id);
-  }, [activeRoom]);
+    if (activeRoom?._id) fetchTasks(activeRoom._id, { includeArchived: showArchived });
+  }, [activeRoom, showArchived]);
 
   useEffect(() => {
     setMembersOpen(false);
@@ -180,6 +181,8 @@ const Workspace = () => {
   const filteredTasks = useMemo(() => {
     return tasks
       .filter((task) => {
+        if (!showArchived && task.archived) return false;
+        if (showArchived && !task.archived) return false;
         if (filter === "active") return task.status !== "completed";
         if (filter === "completed") return task.status === "completed";
         if (["high", "medium", "low"].includes(filter))
@@ -210,7 +213,7 @@ const Workspace = () => {
         }
         return 0;
       });
-  }, [tasks, filter, search, sort, assignedToFilter]);
+  }, [tasks, filter, search, sort, assignedToFilter, showArchived]);
 
   /* ---------------- EMPTY ROOM ---------------- */
   if (!activeRoom) {
@@ -406,6 +409,17 @@ const Workspace = () => {
                     {f.charAt(0).toUpperCase() + f.slice(1)}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setShowArchived((value) => !value)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                    showArchived
+                      ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {showArchived ? "Archived" : "Show Archived"}
+                </button>
               </div>
             </div>
           </div>
@@ -590,7 +604,7 @@ const Workspace = () => {
 
             {hasMore && !loading && (
               <button
-                onClick={() => loadMoreTasks(activeRoom._id)}
+                onClick={() => loadMoreTasks(activeRoom._id, { includeArchived: showArchived })}
                 className="mt-10 w-full py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
               >
                 Load more

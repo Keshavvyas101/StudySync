@@ -105,7 +105,11 @@ export const getTasksByRoom = async (req, res) => {
     const limit = Number(req.query.limit) || 10;
     const skip = Number(req.query.skip) || 0;
 
-    const tasks = await Task.find({ room: room._id })
+    const includeArchived = req.query.includeArchived === "true";
+    const tasks = await Task.find({
+      room: room._id,
+      ...(includeArchived ? {} : { archived: { $ne: true } }),
+    })
       .populate("assignedTo", "name email avatar")
       .populate("createdBy", "name email avatar")
       .populate("subtasks.assignedTo", "name email avatar")

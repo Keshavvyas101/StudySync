@@ -42,6 +42,9 @@ const normalizeTitle = (value = "") =>
 const isOwnTask = (task, userId) =>
   asId(task.assignedTo) === asId(userId) || asId(task.createdBy) === asId(userId);
 
+const canManageTask = (task, workspace, userId) =>
+  asId(task.createdBy) === asId(userId) || asId(workspace.owner) === asId(userId);
+
 const isWeakTaskTitle = (title = "") => {
   const normalized = normalizeTitle(title);
   if (!normalized) return true;
@@ -62,6 +65,9 @@ const compactTaskState = (task) =>
         room: task.room,
         assignedTo: task.assignedTo,
         createdBy: task.createdBy,
+        archived: task.archived || false,
+        archivedAt: task.archivedAt || null,
+        subtaskCount: task.subtasks?.length || 0,
       }
     : null;
 
@@ -87,8 +93,16 @@ export const validateActionDraft = async ({ draft, userId }) => {
       return validateCompleteOwnTaskDraft({ draft, workspace, userId });
     case "START_FOCUS_SESSION":
       return validateStartFocusSessionDraft({ draft, workspace, userId });
+    case "ASSIGN_TASK":
+      return validateAssignTaskDraft({ draft, workspace, userId });
+    case "RESCHEDULE_TASK":
+      return validateRescheduleTaskDraft({ draft, workspace, userId });
+    case "CREATE_SUBTASKS":
+      return validateCreateSubtasksDraft({ draft, workspace, userId });
+    case "ARCHIVE_TASK":
+      return validateArchiveTaskDraft({ draft, workspace, userId });
     default:
-      return invalid("Action type is not allowed in Phase 5A.", 400);
+      return invalid("Action type is not allowed.", 400);
   }
 };
 
@@ -134,6 +148,7 @@ const validateCompleteOwnTaskDraft = async ({ draft, workspace, userId }) => {
 
   const task = await Task.findById(taskId);
   if (!task) return invalid("Task not found.", 404);
+  if (task.archived) return invalid("Task is archived.", 409, compactTaskState(task));
   if (task.room.toString() !== workspace._id.toString()) {
     return invalid("Task does not belong to this workspace.", 403, compactTaskState(task));
   }
@@ -156,6 +171,7 @@ const validateStartFocusSessionDraft = async ({ draft, workspace, userId }) => {
 
   const task = await Task.findById(taskId);
   if (!task) return invalid("Task not found.", 404);
+  if (task.archived) return invalid("Task is archived.", 409, compactTaskState(task));
   if (task.room.toString() !== workspace._id.toString()) {
     return invalid("Task does not belong to this workspace.", 403, compactTaskState(task));
   }
@@ -176,6 +192,107 @@ const validateStartFocusSessionDraft = async ({ draft, workspace, userId }) => {
       activeSession: {
         id: activeSession._id,
         task: activeSession.task,
+        status: activeSession.status,
+      },
+    });
+  }
+
+  return valid(compactTaskState(task), { task, workspace });
+};
+
+const findDraftTask = async ({ draft, workspace }) => {
+  const taskId = draft.payload?.taskId;
+  if (!taskId) return { error: invalid("No matching task was found for this draft.") };
+  if (draft.payload?.matchType !== "exact") {
+    return { error: invalid("Task target was not resolved by exact title match.") };
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task) return { error: invalid("Task not found.", 404) };
+  if (task.room.toString() !== workspace._id.toString()) {
+    return { error: invalid("Task does not belong to this workspace.", 403, compactTaskState(task)) };
+  }
+  if (task.archived) return { error: invalid("Task is archived.", 409, compactTaskState(task)) };
+  return { task };
+};
+
+const validateAssignTaskDraft = async ({ draft, workspace, userId }) => {
+  const { task, error } = await findDraftTask({ draft, workspace });
+  if (error) return error;
+
+  if (task.status === "completed") {
+    return invalid("Cannot assign a completed task.", 409, compactTaskState(task));
+  }
+  if (task.archived) {
+    return invalid("Cannot assign an archived task.", 409, compactTaskState(task));
+  }
+
+  if (!canManageTask(task, workspace, userId)) {
+    return invalid("Only the room owner or task creator can assign this task.", 403, compactTaskState(task));
+  }
+
+  const targetUserId = draft.payload?.targetUserId;
+  const isMember = workspace.members.some((member) => asId(member) === asId(targetUserId));
+  if (!targetUserId || !isMember) {
+    return invalid("Assignee must be a member of this workspace.", 400, compactTaskState(task));
+  }
+
+  return valid(compactTaskState(task), { task, workspace });
+};
+
+const validateRescheduleTaskDraft = async ({ draft, workspace, userId }) => {
+  const { task, error } = await findDraftTask({ draft, workspace });
+  if (error) return error;
+  if (!canManageTask(task, workspace, userId)) {
+    return invalid("Only the room owner or task creator can reschedule this task.", 403, compactTaskState(task));
+  }
+
+  const deadline = draft.payload?.newDeadline ? new Date(draft.payload.newDeadline) : null;
+  if (!deadline || Number.isNaN(deadline.getTime())) {
+    return invalid("New deadline is invalid.", 400, compactTaskState(task));
+  }
+  if (deadline <= new Date()) {
+    return invalid("New deadline must be in the future.", 400, compactTaskState(task));
+  }
+
+  return valid(compactTaskState(task), { task, workspace });
+};
+
+const validateCreateSubtasksDraft = async ({ draft, workspace, userId }) => {
+  const { task, error } = await findDraftTask({ draft, workspace });
+  if (error) return error;
+  if (!canManageTask(task, workspace, userId)) {
+    return invalid("Only the room owner or task creator can add subtasks here.", 403, compactTaskState(task));
+  }
+
+  const subtasks = Array.isArray(draft.payload?.subtasks) ? draft.payload.subtasks : [];
+  const clean = subtasks.map((item) => item?.toString().trim()).filter(Boolean);
+  if (clean.length === 0) return invalid("At least one subtask is required.", 400, compactTaskState(task));
+  if (clean.length > 10) return invalid("A maximum of 10 subtasks is allowed.", 400, compactTaskState(task));
+  if (clean.some((item) => item.length > 200)) {
+    return invalid("Subtask text is too long.", 400, compactTaskState(task));
+  }
+
+  return valid(compactTaskState(task), { task, workspace, subtasks: clean });
+};
+
+const validateArchiveTaskDraft = async ({ draft, workspace, userId }) => {
+  const { task, error } = await findDraftTask({ draft, workspace });
+  if (error) return error;
+  if (!canManageTask(task, workspace, userId)) {
+    return invalid("Only the room owner or task creator can archive this task.", 403, compactTaskState(task));
+  }
+
+  const activeSession = await StudySession.findOne({
+    task: task._id,
+    status: { $in: ACTIVE_SESSION_STATUSES },
+  }).sort({ updatedAt: -1 });
+  if (activeSession) {
+    return invalid("Task has active focus session", 409, {
+      task: compactTaskState(task),
+      activeSession: {
+        id: activeSession._id,
+        user: activeSession.user,
         status: activeSession.status,
       },
     });
