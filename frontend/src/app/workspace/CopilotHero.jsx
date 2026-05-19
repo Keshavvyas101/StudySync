@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
+import { useStudySession } from "../../context/StudySessionContext";
 
 const QUICK_ACTIONS = [
   {
@@ -87,6 +88,114 @@ const TaskPill = ({ task, onFocusTask }) => {
     >
       {task.title}
     </button>
+  );
+};
+
+const formatDraftDate = (value) => {
+  if (!value) return "No deadline";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No deadline";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const getDraftTitle = (draft) => {
+  if (!draft) return "Action draft";
+  if (draft.actionType === "CREATE_TASK") return "Create Task";
+  if (draft.actionType === "COMPLETE_OWN_TASK") return "Complete Task";
+  if (draft.actionType === "START_FOCUS_SESSION") return "Start Focus Session";
+  return "Action draft";
+};
+
+const getDraftRows = (draft) => {
+  if (!draft) return [];
+  const payload = draft.payload || {};
+
+  if (draft.actionType === "CREATE_TASK") {
+    return [
+      ["Title", payload.title],
+      ["Deadline", formatDraftDate(payload.deadline)],
+      ["Priority", payload.priority || "medium"],
+    ];
+  }
+
+  return [
+    ["Task", payload.matchedTask?.title || payload.taskId || "No matching task"],
+  ];
+};
+
+const ApprovalCard = ({
+  draft,
+  busy,
+  feedback,
+  onApprove,
+  onDeny,
+}) => {
+  if (!draft) return null;
+
+  const isFinal = ["executed", "denied", "invalid", "failed"].includes(draft.status);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/25">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+            Approval required
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+            {getDraftTitle(draft)}
+          </div>
+        </div>
+        <span className="rounded-full border border-indigo-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase text-indigo-600 dark:border-indigo-800 dark:bg-slate-950 dark:text-indigo-300">
+          {draft.status}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {getDraftRows(draft).map(([label, value]) => (
+          <div
+            key={label}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
+            <span className="text-slate-500 dark:text-slate-400">{label}</span>
+            <span className="text-right font-medium text-slate-800 dark:text-slate-100">
+              {value || "Not set"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {feedback && (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+          {feedback}
+        </div>
+      )}
+
+      {!isFinal && (
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onApprove}
+            disabled={busy}
+            className="flex-1 rounded-xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+          >
+            {busy ? "Working..." : "Approve"}
+          </button>
+          <button
+            type="button"
+            onClick={onDeny}
+            disabled={busy}
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+          >
+            Deny
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -201,6 +310,9 @@ const CopilotHero = ({
   const [proactiveInsights, setProactiveInsights] = useState([]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState("");
+  const { refreshActiveSession } = useStudySession();
 
   void currentUser;
   void createTask;
@@ -251,10 +363,13 @@ const CopilotHero = ({
     try {
       setLoading(true);
       setError("");
+      setActionFeedback("");
 
       const res = await api.post("/ai/copilot", {
         roomId: activeRoom._id,
         query: text,
+        currentDate: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       if (!res.data?.success) {
@@ -272,6 +387,80 @@ const CopilotHero = ({
       setError(err.response?.data?.message || "Copilot unavailable");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveDraft = async () => {
+    const draft = result?.draftAction || result?.insight?.draftAction;
+    if (!draft?.id || actionBusy) return;
+
+    try {
+      setActionBusy(true);
+      setActionFeedback("");
+      const res = await api.post(`/ai/actions/${draft.id}/approve`);
+      const updatedDraft = res.data?.draftAction;
+      const task = res.data?.result?.task;
+      const session = res.data?.result?.session;
+
+      if (task?._id) {
+        replaceTask(task);
+        onFocusTask?.(task._id);
+      }
+
+      if (session?._id) {
+        await refreshActiveSession();
+      }
+
+      setResult((current) => ({
+        ...current,
+        draftAction: updatedDraft || current?.draftAction,
+        insight: {
+          ...current?.insight,
+          draftAction: updatedDraft || current?.insight?.draftAction,
+        },
+      }));
+      setActionFeedback("Approved and executed.");
+    } catch (err) {
+      const message = err.response?.data?.message || "Action could not be executed";
+      setActionFeedback(message);
+      const updatedDraft = err.response?.data?.draftAction;
+      if (updatedDraft) {
+        setResult((current) => ({
+          ...current,
+          draftAction: updatedDraft,
+          insight: {
+            ...current?.insight,
+            draftAction: updatedDraft,
+          },
+        }));
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDenyDraft = async () => {
+    const draft = result?.draftAction || result?.insight?.draftAction;
+    if (!draft?.id || actionBusy) return;
+
+    try {
+      setActionBusy(true);
+      setActionFeedback("");
+      const res = await api.post(`/ai/actions/${draft.id}/deny`);
+      const updatedDraft = res.data?.draftAction;
+      setResult((current) => ({
+        ...current,
+        draftAction: updatedDraft || current?.draftAction,
+        insight: {
+          ...current?.insight,
+          draftAction: updatedDraft || current?.insight?.draftAction,
+        },
+      }));
+      setActionFeedback("Denied. No StudySync data was changed.");
+    } catch (err) {
+      setActionFeedback(err.response?.data?.message || "Action could not be denied");
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -364,6 +553,13 @@ const CopilotHero = ({
           )}
 
           {result && <InsightCard result={result} onFocusTask={onFocusTask} />}
+          <ApprovalCard
+            draft={result?.draftAction || result?.insight?.draftAction}
+            busy={actionBusy}
+            feedback={actionFeedback}
+            onApprove={handleApproveDraft}
+            onDeny={handleDenyDraft}
+          />
         </div>
       </div>
 

@@ -25,7 +25,8 @@ const ACTION_PATTERNS = [
   /\b(delete|remove|drop|clear)\b.*\b(task|subtask|todo|deadline)\b/,
   /\b(update|edit|change|modify|rename|move|reschedule|postpone)\b.*\b(task|deadline|due|priority|status)\b/,
   /\b(assign|reassign)\b.*\b(task|subtask|todo)\b/,
-  /\b(mark|set)\b.*\b(done|completed|complete|priority|deadline)\b/,
+  /\b(mark|set|complete|finish)\b.*\b(done|completed|complete|task|todo|priority|deadline)\b/,
+  /\b(start|begin)\b.*\b(focus|timer|session)\b/,
   /\bnotify\b.*\b(member|teammate|team|user)\b/,
 ];
 

@@ -10,7 +10,11 @@ import {
 } from "../services/Ai.js";
 import { buildAIContext } from "../services/ai/contextBuilder.js";
 import AIResponseAudit from "../models/AIResponseAudit.js";
-import { buildActionBoundaryReply } from "../services/ai/actionDraft.js";
+import {
+  buildActionBoundaryReply,
+  createActionDraftFromQuery,
+  toClientDraft,
+} from "../services/ai/actionDraft.js";
 import { generateGeneralReasoningReply } from "../services/ai/generalReasoning.js";
 import { maybeUpdateConversationMemory } from "../services/ai/memoryService.js";
 import { buildPhase4Context } from "../services/ai/phase4ContextBuilder.js";
@@ -411,8 +415,21 @@ export const copilot = async (req, res) => {
 
     if (routerResult.route === ROUTES.ACTION_REQUEST) {
       const room = await ensureWorkspaceAccess(roomId, req.user._id);
+      let draft = null;
+      try {
+        draft = await createActionDraftFromQuery({
+          userId: req.user._id,
+          workspaceId: room._id,
+          query: routerResult.originalQuery,
+          currentDate: req.body.currentDate,
+          timezone: req.body.timezone,
+        });
+      } catch (error) {
+        if (error.status !== 400) throw error;
+      }
       const insight = buildActionBoundaryReply({
         query: routerResult.originalQuery,
+        draft,
       });
 
       await saveResponseAudit({
@@ -421,7 +438,7 @@ export const copilot = async (req, res) => {
         routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-        draftAction: insight.draftAction,
+        draftAction: draft ? toClientDraft(draft) : null,
       });
 
       return res.status(200).json({
@@ -433,6 +450,7 @@ export const copilot = async (req, res) => {
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
         llmUsed: false,
         studySyncDataUsed: false,
+        draftAction: draft ? toClientDraft(draft) : null,
         insight,
       });
     }
