@@ -32,40 +32,26 @@ app.set("trust proxy", 1);
 /* ---------------- HTTP SERVER ---------------- */
 const server = http.createServer(app);
 
-/* ---------------- CORS CONFIG ---------------- */
-const allowedOrigins = [
-  "http://localhost:5173",
+//   origin: function (origin, callback) {
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+//   credentials: true,
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
 
-  // Main production domain
-  "https://study-sync-ten-snowy.vercel.app",
-
-  // Main branch deployment
-  "https://study-sync-git-main-keshavvyas101s-projects.vercel.app",
-
-  // Current preview deployment
-  "https://study-sync-1wjppgbou-keshavvyas101s-projects.vercel.app",
-];
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
+/* ---------------- SOCKET.IO ---------------- */
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
+    origin: true,
     credentials: true,
   },
-  transports: ["websocket", "polling"], // helps on cloud platforms
+  transports: ["websocket", "polling"],
 });
 
 /* attach socket logic */
@@ -74,18 +60,16 @@ notificationSocket(io);
 initNotificationSocket(io);
 
 /* ---------------- MIDDLEWARES ---------------- */
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
-/* make io available in routes */
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
-
-/* ---------------- ROUTES ---------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/rooms", roomRoutes);
