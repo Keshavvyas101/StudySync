@@ -29,32 +29,31 @@ const app = express();
 /* ---------------- TRUST PROXY (IMPORTANT FOR RENDER) ---------------- */
 app.set("trust proxy", 1);
 
+/* ---------------- ALLOWED ORIGINS ---------------- */
+const allowedOrigins = [
+  "http://localhost:5173",
+
+  // Your local network frontend (replace with your actual IP if needed)
+  "http://192.168.1.5:5173",
+
+  // Production frontend
+  "https://study-sync-ten-snowy.vercel.app",
+];
+
 /* ---------------- HTTP SERVER ---------------- */
 const server = http.createServer(app);
 
-//   origin: function (origin, callback) {
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-//   credentials: true,
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
-
-/* ---------------- SOCKET.IO ---------------- */
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
+    methods: ["GET", "POST"],
   },
   transports: ["websocket", "polling"],
 });
 
-/* attach socket logic */
+/* ---------------- SOCKETS ---------------- */
 chatSocket(io);
 notificationSocket(io);
 initNotificationSocket(io);
@@ -62,14 +61,17 @@ initNotificationSocket(io);
 /* ---------------- MIDDLEWARES ---------------- */
 app.use(
   cors({
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
 app.use(cookieParser());
 
+/* ---------------- API ROUTES ---------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/rooms", roomRoutes);

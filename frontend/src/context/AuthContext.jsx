@@ -23,9 +23,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    fetchMe();
-  }, []);
+ useEffect(() => {
+  let mounted = true;
+
+  const initAuth = async () => {
+    try {
+      const res = await api.get("/users/me");
+
+      if (!mounted) return;
+
+      const userData = res.data.user || res.data;
+      setUser(userData || null);
+    } catch (err) {
+      if (mounted) {
+        setUser(null);
+      }
+    } finally {
+      if (mounted) {
+        setLoading(false);
+      }
+    }
+  };
+
+  initAuth();
+
+  return () => {
+    mounted = false;
+  };
+}, []);
 
   /* ===============================
      SOCKET LIFECYCLE (LOCKED)
