@@ -33,17 +33,19 @@ app.set("trust proxy", 1);
 const server = http.createServer(app);
 
 /* ---------------- CORS CONFIG ---------------- */
-const CLIENT_URLS = (process.env.CLIENT_URL || "http://localhost:5173")
-  .split(",")
-  .map((url) => url.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://study-sync-git-main-keshavvyas101s-projects.vercel.app",
+  "https://study-sync-kykgf6da4-keshavvyas101s-projects.vercel.app",
+  "https://study-sync-mwnd6goe5-keshavvyas101s-projects.vercel.app",
+];
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || CLIENT_URLS.includes(origin)) {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy blocked request from ${origin}`));
+      callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -54,7 +56,7 @@ const corsOptions = {
 /* ---------------- SOCKET.IO ---------------- */
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URLS,
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },

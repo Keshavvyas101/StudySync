@@ -2,6 +2,20 @@ import { registerUser, loginUser } from "../services/authService.js";
 import generateToken from "../utils/generateToken.js";
 import { checkDueSoonTasksForUser } from "../services/dueSoonService.js";
 import { ensurePersonalWorkspaceForUser } from "../services/personalWorkspaceService.js";
+
+const getAuthCookieOptions = (req) => {
+  const isSecureRequest =
+    req.secure || req.headers["x-forwarded-proto"] === "https";
+  const useCrossSiteCookie =
+    process.env.NODE_ENV === "production" || isSecureRequest;
+
+  return {
+    httpOnly: true,
+    secure: useCrossSiteCookie,
+    sameSite: useCrossSiteCookie ? "none" : "lax",
+  };
+};
+
 /**
  * @desc Register new user
  * @route POST /api/auth/register
@@ -28,11 +42,9 @@ export const register = async (req, res) => {
     await ensurePersonalWorkspaceForUser(user._id);
 
     res.cookie("token", token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+      ...getAuthCookieOptions(req),
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.status(201).json({
       message: "User registered successfully",
@@ -70,11 +82,9 @@ export const login = async (req, res) => {
     await ensurePersonalWorkspaceForUser(user._id);
 
     res.cookie("token", token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+      ...getAuthCookieOptions(req),
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
 
     
@@ -102,11 +112,9 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
   res.cookie("token", "", {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "Lax",
-  expires: new Date(0),
-});
+    ...getAuthCookieOptions(req),
+    expires: new Date(0),
+  });
 
   res.status(200).json({ message: "Logged out successfully" });
 };
