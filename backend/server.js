@@ -35,11 +35,16 @@ const server = http.createServer(app);
 /* ---------------- CORS CONFIG ---------------- */
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://study-sync-git-main-keshavvyas101s-projects.vercel.app",
-  "https://study-sync-kykgf6da4-keshavvyas101s-projects.vercel.app",
-  "https://study-sync-mwnd6goe5-keshavvyas101s-projects.vercel.app",
-];
 
+  // Main production domain
+  "https://study-sync-ten-snowy.vercel.app",
+
+  // Main branch deployment
+  "https://study-sync-git-main-keshavvyas101s-projects.vercel.app",
+
+  // Current preview deployment
+  "https://study-sync-1wjppgbou-keshavvyas101s-projects.vercel.app",
+];
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {

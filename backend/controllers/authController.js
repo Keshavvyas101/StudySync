@@ -100,8 +100,8 @@ export const login = async (req, res) => {
   } catch (error) {
   console.error("LOGIN FAILED:", error);
 
-  res.status(500).json({
-    message: error.message,
+  res.status(error.statusCode || 400).json({
+    message: error.message || "Login failed",
   });
 }
 };
