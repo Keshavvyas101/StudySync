@@ -28,9 +28,14 @@ export const ChatProvider = ({ children }) => {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
+  // 🆕 unread + blink state
+  const [unreadRooms, setUnreadRooms] = useState({});
+  const [blinkingRooms, setBlinkingRooms] = useState({});
+
   const abortRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
+  const blinkTimeoutsRef = useRef({});
 
   /* ===============================
      JOIN ROOM
@@ -40,6 +45,19 @@ export const ChatProvider = ({ children }) => {
 
     socket.emit("join-room", roomId);
     socket.emit("mark-read", { roomId });
+
+    // clear unread for opened room
+    setUnreadRooms((prev) => {
+      const updated = { ...prev };
+      delete updated[roomId];
+      return updated;
+    });
+
+    setBlinkingRooms((prev) => {
+      const updated = { ...prev };
+      delete updated[roomId];
+      return updated;
+    });
 
     return () => {
       socket.emit("leave-room", roomId);
@@ -89,7 +107,15 @@ export const ChatProvider = ({ children }) => {
 
   /* ===============================
      LOAD OLDER
+
+     
   =============================== */
+
+  useEffect(() => {
+  return () => {
+    Object.values(blinkTimeoutsRef.current).forEach(clearTimeout);
+  };
+}, []);
   const loadOlderMessages = async () => {
     if (!roomId || !hasMore || isLoadingOlder || messages.length === 0)
       return;
@@ -115,18 +141,71 @@ export const ChatProvider = ({ children }) => {
   /* ===============================
      SOCKET: NEW MESSAGE
   =============================== */
-  useEffect(() => {
-    const handleNewMessage = (message) => {
+const activeRoomRef = useRef(null);
+
+useEffect(() => {
+  activeRoomRef.current = roomId;
+}, [roomId]);
+
+useEffect(() => {
+  const handleNewMessage = (message) => {
+    const incomingRoomId =
+      message.room?._id ||
+      message.room?.toString() ||
+      message.room;
+
+    console.log("NEW MESSAGE SOCKET:", message);
+    console.log("ROOM ID:", incomingRoomId);
+    console.log("ACTIVE ROOM:", activeRoomRef.current);
+
+    // active room → append message
+    if (incomingRoomId === activeRoomRef.current) {
       setMessages((prev) =>
         prev.some((m) => m._id === message._id)
           ? prev
           : [...prev, message]
       );
-    };
+      return;
+    }
 
-    socket.on("new-message", handleNewMessage);
-    return () => socket.off("new-message", handleNewMessage);
-  }, []);
+    // ignore own message
+    if (message.sender?._id === user?._id) return;
+
+    // unread
+    setUnreadRooms((prev) => ({
+      ...prev,
+      [incomingRoomId]: (prev[incomingRoomId] || 0) + 1,
+    }));
+
+    // blink
+setBlinkingRooms((prev) => ({
+  ...prev,
+  [incomingRoomId]: true,
+}));
+
+// clear old timeout for this room
+if (blinkTimeoutsRef.current[incomingRoomId]) {
+  clearTimeout(blinkTimeoutsRef.current[incomingRoomId]);
+}
+
+// start fresh timeout
+blinkTimeoutsRef.current[incomingRoomId] = setTimeout(() => {
+  setBlinkingRooms((prev) => {
+    const updated = { ...prev };
+    delete updated[incomingRoomId];
+    return updated;
+  });
+
+  delete blinkTimeoutsRef.current[incomingRoomId];
+}, 3500);
+  };
+
+  socket.on("new-message", handleNewMessage);
+
+  return () => {
+    socket.off("new-message", handleNewMessage);
+  };
+}, [user]);
 
   /* ===============================
      SOCKET: MESSAGE EDITED
@@ -203,7 +282,30 @@ export const ChatProvider = ({ children }) => {
   const sendMessage = (text) => {
     if (!text?.trim() || !roomId) return;
     socket.emit("send-message", { roomId, content: text });
+
   };
+  const emitTyping = () => {
+  if (!roomId || !user) return;
+
+  if (!isTypingRef.current) {
+    isTypingRef.current = true;
+    socket.emit("typing", { roomId });
+  }
+
+  clearTimeout(typingTimeoutRef.current);
+
+  typingTimeoutRef.current = setTimeout(() => {
+    socket.emit("stop-typing", { roomId });
+    isTypingRef.current = false;
+  }, 1200);
+};
+
+
+useEffect(() => {
+  return () => {
+    clearTimeout(typingTimeoutRef.current);
+  };
+}, []);
 
   return (
     <ChatContext.Provider
@@ -216,10 +318,13 @@ export const ChatProvider = ({ children }) => {
         hasMore,
         isLoadingOlder,
         toggleReaction,
+        unreadRooms,       // 🆕
+        blinkingRooms,     // 🆕
         editMessage: async (id, content) =>
           api.patch(`/messages/${id}`, { content }),
         deleteMessage: async (id) =>
           api.delete(`/messages/${id}`),
+        emitTyping
       }}
     >
       {children}

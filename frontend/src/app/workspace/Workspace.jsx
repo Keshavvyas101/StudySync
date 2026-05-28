@@ -40,6 +40,7 @@ const Workspace = () => {
     fetchRooms,
     deleteRoom,
     leaveRoom,
+    removeMember
   } = useRooms();
   const { user } = useAuth();
   const {
@@ -52,7 +53,7 @@ const Workspace = () => {
     replaceTask,
   } = useTasks();
 
-  const { workspaceMode, setWorkspaceMode, openChat } = useUI();
+  const { workspaceMode, setWorkspaceMode, openChat, focusMode, isFocusOpen } = useUI();
 
   const fileInputRef = useRef(null);
   const [filter, setFilter] = useState("all");
@@ -123,6 +124,22 @@ const Workspace = () => {
       setSettingsOpen(false);
     }
   };
+  const handleRemoveMember = async (memberId, memberName) => {
+  const ok = window.confirm(
+    `Remove ${memberName} from this room?`
+  );
+
+  if (!ok) return;
+
+  try {
+    await removeMember(activeRoom._id, memberId);
+  } catch (err) {
+    console.error(err);
+    alert(
+      err.response?.data?.message || "Failed to remove member"
+    );
+  }
+};
 
   const handleDeleteRoom = async () => {
     const ok = window.confirm("This will permanently delete this room. Continue?");
@@ -261,7 +278,7 @@ const Workspace = () => {
                     <button
                       type="button"
                       onClick={() => setMembersOpen(true)}
-                      className="h-9 px-3 flex items-center gap-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition"
+                      className="workspace-toolbar-button"
                     >
                       <UsersIcon />
                       Members
@@ -271,15 +288,15 @@ const Workspace = () => {
                   <button
                     type="button"
                     onClick={() => setSettingsOpen((v) => !v)}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition"
+                    className="workspace-toolbar-button workspace-toolbar-icon"
                     aria-label="Room settings"
                   >
                     <SettingsIcon />
                   </button>
 
                   {settingsOpen && (
-                    <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
-                      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+                    <div className="workspace-menu absolute right-0 top-11 z-50 w-72 overflow-hidden rounded-2xl">
+                      <div className="workspace-menu-section p-4">
                         {isPersonalRoom ? (
                           <>
                             <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -295,13 +312,13 @@ const Workspace = () => {
                               Invite People
                             </div>
                             <div className="mt-3 flex items-center gap-2">
-                              <div className="flex-1 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 font-mono text-sm text-indigo-600 dark:text-indigo-400 select-all">
+                              <div className="workspace-invite-code flex-1 select-all rounded-xl px-3 py-2 font-mono text-sm text-indigo-600 dark:text-indigo-300">
                                 {activeRoom.inviteCode}
                               </div>
                               <button
                                 type="button"
                                 onClick={handleCopyInviteCode}
-                                className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
+                                className="workspace-primary-button h-10 px-3 text-sm"
                               >
                                 {copiedInvite ? "Copied" : "Copy"}
                               </button>
@@ -316,7 +333,7 @@ const Workspace = () => {
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploadingRoomImage}
-                            className="w-full px-3 py-2 rounded-lg text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                            className="workspace-menu-item disabled:opacity-50"
                           >
                             {uploadingRoomImage ? "Uploading image..." : "Update room image"}
                           </button>
@@ -326,7 +343,7 @@ const Workspace = () => {
                           <button
                             type="button"
                             onClick={handleLeaveRoom}
-                            className="w-full px-3 py-2 rounded-lg text-left text-sm text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            className="workspace-menu-item workspace-menu-item-warning"
                           >
                             Leave room
                           </button>
@@ -336,7 +353,7 @@ const Workspace = () => {
                           <button
                             type="button"
                             onClick={handleDeleteRoom}
-                            className="w-full px-3 py-2 rounded-lg text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="workspace-menu-item workspace-menu-item-danger"
                           >
                             Delete room
                           </button>
@@ -364,13 +381,13 @@ const Workspace = () => {
                   placeholder="Search tasks..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="workspace-filter-field"
                 />
 
                 <select
                   value={assignedToFilter}
                   onChange={(e) => setAssignedToFilter(e.target.value)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="workspace-filter-field"
                 >
                   <option value="all">All Members</option>
                   <option value="unassigned">Unassigned</option>
@@ -384,7 +401,7 @@ const Workspace = () => {
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="workspace-filter-field"
                 >
                   <option value="date">Newest First</option>
                   <option value="priority">Priority</option>
@@ -399,11 +416,11 @@ const Workspace = () => {
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition
+                    className={`workspace-filter-chip
                       ${
                         filter === f
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          ? "workspace-filter-chip-active"
+                          : ""
                       }`}
                   >
                     {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -412,10 +429,10 @@ const Workspace = () => {
                 <button
                   type="button"
                   onClick={() => setShowArchived((value) => !value)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  className={`workspace-filter-chip ${
                     showArchived
-                      ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      ? "workspace-filter-chip-active"
+                      : ""
                   }`}
                 >
                   {showArchived ? "Archived" : "Show Archived"}
@@ -426,8 +443,8 @@ const Workspace = () => {
 
           {membersOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-              <div className="w-full max-w-md rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="workspace-modal w-full max-w-md rounded-2xl">
+                <div className="workspace-modal-header flex items-center justify-between px-5 py-4">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                       Room Members
@@ -439,7 +456,7 @@ const Workspace = () => {
                   <button
                     type="button"
                     onClick={() => setMembersOpen(false)}
-                    className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"
+                    className="workspace-icon-button"
                     aria-label="Close members"
                   >
                     X
@@ -459,7 +476,7 @@ const Workspace = () => {
                     return (
                       <li
                         key={member._id}
-                        className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"
+                        className="workspace-list-row flex items-center justify-between gap-3 px-3 py-2.5"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar name={member.name} src={member.avatar?.url} size={34} />
@@ -474,12 +491,25 @@ const Workspace = () => {
                             )}
                           </div>
                         </div>
+<div className="flex items-center gap-2 shrink-0">
+  {isRoomOwner && (
+    <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300">
+      Owner
+    </span>
+  )}
 
-                        {isRoomOwner && (
-                          <span className="shrink-0 rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-300">
-                            Owner
-                          </span>
-                        )}
+  {isOwner && !isRoomOwner && (
+    <button
+      type="button"
+      onClick={() =>
+        handleRemoveMember(member._id, member.name)
+      }
+      className="px-2 py-1 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+    >
+      Remove
+    </button>
+  )}
+</div>
                       </li>
                     );
                   })}
@@ -663,11 +693,7 @@ const Workspace = () => {
                 setCreateTaskError("");
                 setNewTaskOpen(true);
               }}
-              className="fixed bottom-6 left-1/2 -translate-x-1/2
-                px-6 py-2 rounded-xl
-                bg-indigo-600 hover:bg-indigo-700
-                text-white font-medium
-                shadow-xl transition"
+              className="workspace-new-task-fab fixed bottom-6 left-1/2 -translate-x-1/2"
             >
               + New Task
             </button>
@@ -681,16 +707,16 @@ const Workspace = () => {
               <form
                 onSubmit={handleCreateTask}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl"
+                className="workspace-modal w-full max-w-lg rounded-2xl"
               >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="workspace-modal-header flex items-center justify-between px-5 py-4">
                   <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                     New Task
                   </h3>
                   <button
                     type="button"
                     onClick={() => !creatingTask && setNewTaskOpen(false)}
-                    className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"
+                    className="workspace-icon-button"
                     aria-label="Close new task"
                   >
                     X
@@ -706,7 +732,7 @@ const Workspace = () => {
                       type="text"
                       value={newTaskForm.title}
                       onChange={(e) => handleNewTaskChange("title", e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="workspace-form-field"
                       placeholder="Task title"
                       autoFocus
                     />
@@ -720,7 +746,7 @@ const Workspace = () => {
                       value={newTaskForm.description}
                       onChange={(e) => handleNewTaskChange("description", e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                      className="workspace-form-field resize-none"
                       placeholder="Add details"
                     />
                   </div>
@@ -733,7 +759,7 @@ const Workspace = () => {
                       <select
                         value={newTaskForm.priority}
                         onChange={(e) => handleNewTaskChange("priority", e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                        className="workspace-form-field"
                       >
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
@@ -749,7 +775,7 @@ const Workspace = () => {
                         type="date"
                         value={newTaskForm.deadline}
                         onChange={(e) => handleNewTaskChange("deadline", e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                        className="workspace-form-field"
                       />
                     </div>
                   </div>
@@ -761,7 +787,7 @@ const Workspace = () => {
                     <select
                       value={newTaskForm.assignedTo}
                       onChange={(e) => handleNewTaskChange("assignedTo", e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                      className="workspace-form-field"
                     >
                       <option value="">Unassigned</option>
                       {members.map((member) => (
@@ -779,18 +805,18 @@ const Workspace = () => {
                   )}
                 </div>
 
-                <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="workspace-modal-footer flex items-center justify-end gap-3 px-5 py-4">
                   <button
                     type="button"
                     onClick={() => !creatingTask && setNewTaskOpen(false)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="workspace-secondary-button"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={creatingTask || newTaskForm.title.trim().length < 3}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="workspace-primary-button disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {creatingTask ? "Creating..." : "Create Task"}
                   </button>
@@ -807,7 +833,7 @@ const Workspace = () => {
             <button
               type="button"
               onClick={() => setWorkspaceMode("tasks")}
-              className="text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-300 transition"
+              className="workspace-toolbar-button"
             >
               ← Back to Tasks
             </button>
@@ -819,7 +845,9 @@ const Workspace = () => {
       <button
         type="button"
         onClick={() => setCopilotOpen(true)}
-        className="fixed bottom-6 right-6 z-40 rounded-full border border-slate-200/80 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-2xl shadow-slate-950/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-indigo-500/25 dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+        className={`workspace-copilot-launcher fixed bottom-6 right-6 z-40 ${
+          isFocusOpen && focusMode === "chat" ? "workspace-copilot-launcher-hidden" : ""
+        }`}
       >
         Ask Study Copilot
       </button>

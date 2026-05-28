@@ -3,8 +3,12 @@ import StudySession from "../../models/StudySession.js";
 import Task from "../../models/Task.js";
 import { aiFeatureFlags } from "./featureFlags.js";
 import { generateBehaviorInsights } from "./insightEngine.js";
+import { buildStudyPlanSummary } from "./mockInsightGenerator.js";
 import { generateProactiveInsights } from "./triggerEngine.js";
+import { getConversationMemory } from "./memoryService.js";
 import { ensureWorkspaceAccess } from "./workspaceAccess.js";
+
+const CONVERSATION_MEMORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const toClientTask = (task) => ({
   id: task._id,
@@ -51,7 +55,7 @@ const getDeadlineBuckets = (tasks, now) => {
 export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
   const room = await ensureWorkspaceAccess(roomId, userId);
 
-  const [tasks, sessions, aiProfile] = await Promise.all([
+  const [tasks, sessions, aiProfile, conversationMemory] = await Promise.all([
     Task.find({ room: room._id, archived: { $ne: true } })
       .populate("assignedTo", "name email avatar")
       .sort({ createdAt: -1 })
@@ -64,6 +68,7 @@ export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
       .sort({ startedAt: -1 })
       .limit(200),
     AIProfile.findOne({ user: userId, workspace: room._id }),
+    getConversationMemory({ userId, workspaceId: room._id }),
   ]);
 
   const insights = generateBehaviorInsights({ sessions, tasks, room, now });
@@ -90,8 +95,10 @@ export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
     },
     now,
   });
-
-  return {
+  const conversationMemoryFresh =
+    conversationMemory?.lastSignalAt &&
+    now - new Date(conversationMemory.lastSignalAt) <= CONVERSATION_MEMORY_TTL_MS;
+  const baseContext = {
     workspace: {
       id: room._id,
       name: room.name,
@@ -138,6 +145,12 @@ export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
       confidence: aiProfile?.confidence || 0,
       profileVersion: aiProfile?.metadata?.profileVersion || 1,
       lastUpdatedAt: aiProfile?.metadata?.lastUpdatedAt || null,
+      conversationSignals: conversationMemoryFresh
+        ? (conversationMemory?.signals || []).slice(-12)
+        : [],
+      conversationLastSignalAt: conversationMemoryFresh
+        ? conversationMemory?.lastSignalAt
+        : null,
     },
     proactiveInsights,
     featurePolicy: {
@@ -146,5 +159,10 @@ export const buildAIContext = async ({ userId, roomId, now = new Date() }) => {
       proactiveEnabled: aiFeatureFlags.jarvisProactive,
       requiresUserApproval: true,
     },
+  };
+
+  return {
+    ...baseContext,
+    studyPlan: buildStudyPlanSummary(baseContext, "", now),
   };
 };

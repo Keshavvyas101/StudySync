@@ -3,6 +3,7 @@ import { useTasks } from "../../context/TaskContext";
 import Avatar from "../../components/common/Avatar";
 import { useUI } from "../../context/UIContext";
 import { useStudySession } from "../../context/StudySessionContext";
+import "./TaskCard.css";
 
 /* ===================== ICONS ===================== */
 const Icons = {
@@ -180,7 +181,7 @@ const TaskCard = ({
       ref={cardRef}
       onClick={() => onToggle?.(task._id)}
       className={`
-        group relative cursor-pointer
+        task-card-shell group relative cursor-pointer
         bg-white/90 dark:bg-slate-900/70
         backdrop-blur-sm
         border rounded-2xl

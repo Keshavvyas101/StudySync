@@ -92,6 +92,16 @@ const getFocusStreakDays = (sessions, now) => {
   return streak;
 };
 
+const getRecentShortSessionCount = (sessions, now) =>
+  sessions.filter((session) => {
+    const startedAt = new Date(session.startedAt || session.updatedAt || now);
+    return (
+      session.status === "completed" &&
+      now - startedAt <= 3 * DAY_MS &&
+      !isValidLearningSession(session)
+    );
+  }).length;
+
 const getWeakSubjectDrift = ({ aiProfile, tasks, now }) => {
   const weaknesses = Array.isArray(aiProfile?.weaknesses)
     ? aiProfile.weaknesses.filter(Boolean)
@@ -181,6 +191,15 @@ export const evaluateTriggerCandidates = ({
   const insights = [];
   const lastValidSessionAt = getLastValidSessionAt(studySessions);
   const inactiveMs = lastValidSessionAt ? now - lastValidSessionAt : Infinity;
+  const pendingTasks = tasks.filter(isPending);
+  const overdueTasks = pendingTasks.filter(
+    (task) => task.deadline && new Date(task.deadline) < now
+  );
+  const dueSoonTasks = pendingTasks.filter((task) => {
+    if (!task.deadline) return false;
+    const msUntilDue = new Date(task.deadline) - now;
+    return msUntilDue >= 0 && msUntilDue <= 48 * 60 * 60 * 1000;
+  });
 
   if (inactiveMs > 2 * DAY_MS) {
     const inactiveDays = Number.isFinite(inactiveMs)
@@ -190,10 +209,10 @@ export const evaluateTriggerCandidates = ({
       createInsight({
         type: "inactivity",
         severity: "warning",
-        title: "Focus has gone quiet",
+        title: "Recovery window",
         message: inactiveDays
-          ? `You haven't completed a focus session in ${inactiveDays} ${plural(inactiveDays, "day")}.`
-          : "You haven't completed a focus session yet.",
+          ? `You have not completed a focus session in ${inactiveDays} ${plural(inactiveDays, "day")}. A short restart is better than waiting for a perfect block.`
+          : "You have not completed a focus session yet. Start with a small first block.",
         confidence: 1,
         cooldownKey: "inactivity:48h",
         generatedAt: now,
@@ -214,11 +233,11 @@ export const evaluateTriggerCandidates = ({
       createInsight({
         type: "deadline_pressure",
         severity: overdueHighPriorityTasks.length >= 4 ? "critical" : "warning",
-        title: "Deadline pressure is rising",
+        title: "Overload needs prioritization",
         message: `${overdueHighPriorityTasks.length} high-priority ${plural(
           overdueHighPriorityTasks.length,
           "task"
-        )} ${overdueHighPriorityTasks.length === 1 ? "is" : "are"} overdue.`,
+        )} ${overdueHighPriorityTasks.length === 1 ? "is" : "are"} overdue. Handle the oldest urgent item first instead of switching between all of them.`,
         confidence: 1,
         cooldownKey: "deadline_pressure:high_overdue",
         generatedAt: now,
@@ -227,6 +246,48 @@ export const evaluateTriggerCandidates = ({
           taskIds: overdueHighPriorityTasks.map((task) => asId(task)),
         },
         why: ["At least 2 pending high-priority tasks are past their deadline."],
+      })
+    );
+  }
+
+  if (pendingTasks.length >= 6 && overdueTasks.length + dueSoonTasks.length >= 3) {
+    insights.push(
+      createInsight({
+        type: "overload",
+        severity: overdueTasks.length >= 3 ? "critical" : "warning",
+        title: "Too many open loops",
+        message: `${pendingTasks.length} tasks are open, with ${
+          overdueTasks.length + dueSoonTasks.length
+        } overdue or due soon. Pick one recovery target before adding more work.`,
+        confidence: 1,
+        cooldownKey: "overload:pending_pressure",
+        generatedAt: now,
+        sourceSignals: {
+          pendingTaskCount: pendingTasks.length,
+          overdueTaskCount: overdueTasks.length,
+          dueSoonTaskCount: dueSoonTasks.length,
+        },
+        why: ["Pending workload is high and several tasks are overdue or due soon."],
+      })
+    );
+  }
+
+  const recentShortSessionCount = getRecentShortSessionCount(studySessions, now);
+  if (recentShortSessionCount >= 3) {
+    insights.push(
+      createInsight({
+        type: "incomplete_sessions",
+        severity: "info",
+        title: "Focus sessions are ending early",
+        message: `${recentShortSessionCount} recent completed sessions were shorter than a useful learning block. Try one smaller task target before starting the timer.`,
+        confidence: 1,
+        cooldownKey: "focus:repeated_short_sessions",
+        generatedAt: now,
+        sourceSignals: {
+          recentShortSessionCount,
+          minimumLearningSeconds: 300,
+        },
+        why: ["At least 3 completed sessions in the last 3 days were below the learning-session threshold."],
       })
     );
   }
@@ -240,7 +301,7 @@ export const evaluateTriggerCandidates = ({
           type: "focus_window",
           severity: "info",
           title: "Focus window is active",
-          message: "Your strongest focus window is active.",
+          message: "Your strongest focus window is active. Use it for the task with the clearest deadline pressure.",
           confidence,
           cooldownKey: `focus_window:${bestStudyWindow}`,
           generatedAt: now,
@@ -261,7 +322,7 @@ export const evaluateTriggerCandidates = ({
           type: "subject_drift",
           severity: "warning",
           title: `${drift.subject} may need attention`,
-          message: `${drift.subject} has been postponed multiple times.`,
+          message: `${drift.subject} has been postponed multiple times. Schedule a short revision pass before it becomes a larger gap.`,
           confidence,
           cooldownKey: `subject_drift:${drift.subject.toLowerCase()}`,
           generatedAt: now,
@@ -283,7 +344,7 @@ export const evaluateTriggerCandidates = ({
           type: "momentum",
           severity: "info",
           title: "Momentum is building",
-          message: `You're on a ${streakDays}-day focus streak.`,
+          message: `You are on a ${streakDays}-day focus streak. Keep the next session simple so the streak stays easy to continue.`,
           confidence,
           cooldownKey: "momentum:focus_streak",
           generatedAt: now,

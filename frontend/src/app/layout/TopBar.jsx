@@ -19,9 +19,6 @@ const Topbar = () => {
   const { activeRoom, fetchMembers } = useRooms();
   const { setWorkspaceMode, openChat } = useUI();
 
-
-
-
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -64,68 +61,61 @@ const Topbar = () => {
   /* ===============================
      AVATAR UPLOAD HANDLER
      =============================== */
- const handleAvatarChange = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const formData = new FormData();
-  formData.append("avatar", file);
+    const formData = new FormData();
+    formData.append("avatar", file);
 
-  try {
-    setUploading(true);
+    try {
+      setUploading(true);
 
-    const res = await api.patch("/users/avatar", formData);
+      const res = await api.patch("/users/avatar", formData);
 
-    // ✅ update logged-in user avatar
-    updateUserAvatar(res.data.avatar);
+      // ✅ update logged-in user avatar
+      updateUserAvatar(res.data.avatar);
 
-    // 🔥 IMPORTANT: refresh members list
-    if (activeRoom?._id) {
-      fetchMembers(activeRoom._id);
+      // 🔥 IMPORTANT: refresh members list
+      if (activeRoom?._id) {
+        fetchMembers(activeRoom._id);
+      }
+
+      setProfileOpen(false);
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+      alert("Failed to upload profile picture");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
     }
-
-    setProfileOpen(false);
-  } catch (err) {
-    console.error("Avatar upload failed", err);
-    alert("Failed to upload profile picture");
-  } finally {
-    setUploading(false);
-    e.target.value = "";
-  }
-};
-
+  };
 
   return (
-    <header className="topbar relative z-50 shrink-0 bg-white/85 dark:bg-slate-950/85 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl">
+    <header className="topbar topbar-shell relative z-50 shrink-0 backdrop-blur-xl">
       {/* LEFT */}
       <div className="flex items-center gap-3">
-        <span className="text-lg font-semibold text-slate-950 dark:text-slate-50">
+        <span className="topbar-brand text-lg font-semibold text-slate-950 dark:text-slate-50">
           StudySync
         </span>
         <GlobalFocusTimer />
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-3 relative">
+      <div className="topbar-actions relative flex items-center gap-2.5">
         {/* ================= NOTIFICATIONS ================= */}
         <div ref={notifRef} className="relative">
-          
           <button
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setNotifOpen((v) => !v)}
-            className="relative h-9 w-9 flex items-center justify-center rounded-full
-                       bg-slate-100/80 hover:bg-slate-200
-                       dark:bg-slate-900 dark:hover:bg-slate-800
-                       transition-all duration-200 hover:-translate-y-0.5"
+            className="topbar-control topbar-icon-control relative"
           >
             🔔
           </button>
 
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px]
-                             px-1 rounded-full bg-red-600 text-white
-                             text-[11px] font-semibold flex items-center justify-center">
+            <span className="topbar-badge absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-semibold text-white">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
@@ -137,39 +127,26 @@ const Topbar = () => {
           )}
         </div>
 
-       {/* ================= CHAT ================= */}
-<button
-  onClick={openChat}
-  className="h-9 px-3 flex items-center gap-1 rounded-full
-             bg-slate-100/80 hover:bg-slate-200
-             dark:bg-slate-900 dark:hover:bg-slate-800
-             text-sm font-medium text-slate-700 dark:text-slate-200
-             transition-all duration-200 hover:-translate-y-0.5"
->
-  💬 Chat
-</button>
+        {/* ================= CHAT ================= */}
+        <button
+          onClick={openChat}
+          className="topbar-control topbar-text-control"
+        >
+          💬 Chat
+        </button>
 
-{/* ================= ANALYTICS ================= */}
-<button
-  onClick={() => setWorkspaceMode("analytics")}
-  className="h-9 px-3 flex items-center gap-1 rounded-full
-             bg-slate-100/80 hover:bg-slate-200
-             dark:bg-slate-900 dark:hover:bg-slate-800
-             text-sm font-medium text-slate-700 dark:text-slate-200
-             transition-all duration-200 hover:-translate-y-0.5"
->
-  📊 Analytics
-</button>
-
-
+        {/* ================= ANALYTICS ================= */}
+        <button
+          onClick={() => setWorkspaceMode("analytics")}
+          className="topbar-control topbar-text-control"
+        >
+          📊 Analytics
+        </button>
 
         {/* ================= THEME ================= */}
         <button
           onClick={toggleTheme}
-          className="h-9 w-9 flex items-center justify-center rounded-full
-                     bg-slate-100/80 hover:bg-slate-200
-                     dark:bg-slate-900 dark:hover:bg-slate-800
-                     transition-all duration-200 hover:-translate-y-0.5"
+          className="topbar-control topbar-icon-control"
         >
           {theme === "dark" ? "🌞" : "🌙"}
         </button>
@@ -180,38 +157,35 @@ const Topbar = () => {
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setProfileOpen((v) => !v)}
-            className="flex items-center gap-2 pl-3
-                       border-l border-slate-200 dark:border-slate-800"
+            className="topbar-control topbar-profile-control"
           >
-           <Avatar
-  name={user?.name}
-  src={user?.avatar?.url}
-  size={36}
-/>
+            <Avatar
+              name={user?.name}
+              src={user?.avatar?.url}
+              size={36}
+            />
 
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span className="max-w-32 truncate text-sm font-medium text-slate-700 dark:text-slate-200">
               {user?.name}
             </span>
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-3 w-56 rounded-2xl shadow-2xl shadow-slate-900/10
-                            bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl
-                            border border-slate-200/80 dark:border-slate-800 z-50 overflow-hidden">
+            <div className="topbar-profile-menu absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-2xl backdrop-blur-xl">
               {/* HEADER */}
-              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="profile-menu-header px-4 py-3">
                 <div className="flex items-center gap-3">
-                 <Avatar
-  name={user?.name}
-  src={user?.avatar?.url}
-  size={36}
-/>
+                  <Avatar
+                    name={user?.name}
+                    src={user?.avatar?.url}
+                    size={36}
+                  />
 
                   <div>
-                    <p className="text-sm font-semibold">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                       {user?.name}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                       {user?.email}
                     </p>
                   </div>
@@ -223,9 +197,7 @@ const Topbar = () => {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="w-full text-left px-3 py-2 text-sm rounded-md
-                             hover:bg-slate-100 dark:hover:bg-slate-800
-                             disabled:opacity-50"
+                  className="topbar-menu-item"
                 >
                   {uploading
                     ? "Uploading..."
@@ -234,9 +206,7 @@ const Topbar = () => {
 
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 text-sm rounded-md
-                             text-red-600 hover:bg-red-50
-                             dark:hover:bg-red-900/20"
+                  className="topbar-menu-item topbar-menu-item-danger"
                 >
                   Logout
                 </button>

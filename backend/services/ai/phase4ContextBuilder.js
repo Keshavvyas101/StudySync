@@ -1,4 +1,5 @@
 import { buildAIContext } from "./contextBuilder.js";
+import { buildStudyPlanSummary } from "./mockInsightGenerator.js";
 
 const compactTask = (task) => ({
   title: task.title,
@@ -20,15 +21,29 @@ const compactInsight = (insight) => ({
   why: Array.isArray(insight.why) ? insight.why.slice(0, 3) : [],
 });
 
+const compactConversationMemory = (memory = {}) => ({
+  recentStudySignals: (memory.conversationSignals || [])
+    .filter(
+      (signal) =>
+        signal.startsWith("recent_topic:") ||
+        signal.startsWith("recent_friction:")
+    )
+    .slice(-4),
+  lastSignalAt: memory.conversationLastSignalAt || null,
+});
+
 export const buildPhase4Context = async ({
   userId,
   roomId,
   route,
   responseStyle,
   routerConfidence,
+  jarvisIntent = null,
+  query = "",
   now = new Date(),
 }) => {
   const context = await buildAIContext({ userId, roomId, now });
+  const studyPlan = buildStudyPlanSummary(context, query, now);
 
   return {
     context,
@@ -41,12 +56,20 @@ export const buildPhase4Context = async ({
         id: userId?.toString?.() || userId,
       },
       route,
+      jarvisIntent,
       responseStyle,
       confidence: {
         router: routerConfidence,
         aiProfile: context.memory?.confidence || 0,
       },
       taskSummary: context.taskSummary,
+      studyPlan: {
+        workload: studyPlan.workload || null,
+        friction: studyPlan.friction || null,
+        primaryTask: studyPlan.primaryTask || null,
+        rankedTasks: (studyPlan.rankedTasks || []).slice(0, 3),
+        suggestedBlocks: (studyPlan.suggestedBlocks || []).slice(0, 3),
+      },
       relevantTasks: {
         overdue: (context.overdueTasks || []).slice(0, 5).map(compactTask),
         today: (context.todayTasks || []).slice(0, 5).map(compactTask),
@@ -62,6 +85,7 @@ export const buildPhase4Context = async ({
         inactivityRisk: context.inactivityRisk || null,
         bestPerformanceDay: context.bestPerformanceDay || null,
       },
+      conversationMemory: compactConversationMemory(context.memory),
       recentSessionsSummary: context.sessionAnalytics,
       proactiveInsights: (context.proactiveInsights || []).slice(0, 3).map(compactInsight),
       boundaries: {

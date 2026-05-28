@@ -82,8 +82,7 @@ const MessageBubble = ({ message, grouped }) => {
 
   return (
     <div
-      className={`group relative flex gap-2.5 px-2 py-0.5 rounded-lg
-      hover:bg-slate-50 dark:hover:bg-slate-800/50
+      className={`message-row group relative flex gap-3 px-3 py-1.5
       ${isOwn ? "flex-row-reverse" : "flex-row"}
       ${grouped ? "mt-0.5" : "mt-3"}`}
     >
@@ -96,9 +95,9 @@ const MessageBubble = ({ message, grouped }) => {
         )}
       </div>
 
-      <div className={`flex flex-col max-w-[75%] ${isOwn ? "items-end" : ""}`}>
+      <div className={`flex max-w-[78%] flex-col ${isOwn ? "items-end" : ""}`}>
         {!grouped && (
-          <div className="flex gap-2 text-[10px] text-slate-400 mb-1">
+          <div className="mb-1.5 flex gap-2 px-1 text-[10px] font-medium text-slate-400 dark:text-slate-500">
             <span>{isOwn ? "You" : senderName}</span>
             <span>{formatTime(message.createdAt)}</span>
             {message.editedAt && !message.isDeleted && (
@@ -109,19 +108,18 @@ const MessageBubble = ({ message, grouped }) => {
 
         {/* ================= DELETED ================= */}
         {isDeletedForViewer ? (
-          <div className="px-3 py-2 italic text-xs text-slate-500
-            bg-slate-100 dark:bg-slate-800 border border-dashed rounded-xl">
+          <div className="rounded-2xl bg-slate-100/80 px-3 py-2 text-xs italic text-slate-500 shadow-sm dark:bg-slate-800/70 dark:text-slate-400">
             This message was deleted
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative px-7">
             {/* ================= MESSAGE / EDIT ================= */}
             <div
-              className={`px-3 py-2 rounded-2xl shadow-sm
+              className={`message-bubble-surface px-3.5 py-2.5
               ${
                 isOwn
-                  ? "bg-indigo-600 text-white rounded-tr-sm"
-                  : "bg-white dark:bg-slate-800 border rounded-tl-sm"
+                  ? "message-bubble-own rounded-tr-md text-white"
+                  : "message-bubble-other rounded-tl-md"
               }`}
             >
               {isEditing ? (
@@ -142,10 +140,9 @@ const MessageBubble = ({ message, grouped }) => {
             {!isEditing && (
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className={`absolute top-0 opacity-0 group-hover:opacity-100
-                transition p-1 rounded-full bg-white dark:bg-slate-800
-                border shadow
-                ${isOwn ? "left-0 -translate-x-1/2" : "right-0 translate-x-1/2"}`}
+                className={`message-action-trigger absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100
+                ${isOwn ? "left-0" : "right-0"}`}
+                aria-label="Message actions"
               >
                 ⋮
               </button>
@@ -155,8 +152,7 @@ const MessageBubble = ({ message, grouped }) => {
             {showMenu && (
               <div
                 ref={menuRef}
-                className={`absolute z-50 mt-2 w-28 rounded-lg bg-white
-                dark:bg-slate-800 border shadow
+                className={`message-action-menu absolute z-50 mt-2 w-32 overflow-hidden rounded-xl
                 ${isOwn ? "right-0" : "left-0"}`}
               >
                 {isOwn && (
@@ -165,14 +161,14 @@ const MessageBubble = ({ message, grouped }) => {
                       setIsEditing(true);
                       setShowMenu(false);
                     }}
-                    className="w-full px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="message-menu-item"
                   >
                     Edit
                   </button>
                 )}
                 <button
                   onClick={() => deleteMessage(message._id)}
-                  className="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  className="message-menu-item message-menu-item-danger"
                 >
                   Delete
                 </button>
@@ -181,16 +177,16 @@ const MessageBubble = ({ message, grouped }) => {
 
             {/* ================= EDIT CONTROLS ================= */}
             {isEditing && (
-              <div className="flex gap-2 mt-1 justify-end">
+              <div className="mt-2 flex justify-end gap-2">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="text-xs text-slate-400"
+                  className="message-inline-action"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="text-xs text-indigo-600 font-medium"
+                  className="message-inline-action message-inline-action-primary"
                 >
                   Save
                 </button>
@@ -199,12 +195,12 @@ const MessageBubble = ({ message, grouped }) => {
 
             {/* ================= REACTIONS ================= */}
             {Object.keys(groupedReactions).length > 0 && (
-              <div className="flex gap-1 mt-1">
+              <div className="mt-1.5 flex gap-1">
                 {Object.entries(groupedReactions).map(([emoji, users]) => (
                   <button
                     key={emoji}
                     onClick={() => toggleReaction(message._id, emoji)}
-                    className="px-2 py-0.5 text-xs rounded-full bg-slate-100 border"
+                    className="message-reaction-pill"
                   >
                     {emoji} {users.length}
                   </button>

@@ -102,6 +102,25 @@ export const RoomProvider = ({ children }) => {
     }
   };
 
+  /* ================= REMOVE MEMBER ================= */
+  const removeMember = async (roomId, memberId) => {
+    try {
+      await api.post("/rooms/remove", {
+        roomId,
+        memberId,
+      });
+
+      setMembers((prev) =>
+        prev.filter((m) => m._id !== memberId)
+      );
+
+      await fetchRooms();
+    } catch (err) {
+      console.error("Failed to remove member", err);
+      throw err;
+    }
+  };
+
   /* ================= DELETE ROOM ================= */
   const deleteRoom = async (roomId) => {
     try {
@@ -128,7 +147,7 @@ export const RoomProvider = ({ children }) => {
     }
   };
 
-  /* ================= UPDATE ROOM AVATAR (NEW) ================= */
+  /* ================= UPDATE ROOM AVATAR ================= */
   const updateRoomAvatar = async (roomId, file) => {
     try {
       const formData = new FormData();
@@ -144,14 +163,12 @@ export const RoomProvider = ({ children }) => {
 
       const updatedRoom = res.data.room;
 
-      // Update rooms list
       setRooms((prev) =>
         prev.map((r) =>
           r._id === roomId ? updatedRoom : r
         )
       );
 
-      // Update activeRoom if it's same room
       setActiveRoom((prev) =>
         prev?._id === roomId ? updatedRoom : prev
       );
@@ -195,8 +212,7 @@ export const RoomProvider = ({ children }) => {
         createRoom,
         deleteRoom,
         leaveRoom,
-
-        // 👇 new exposed method
+        removeMember,
         updateRoomAvatar,
       }}
     >

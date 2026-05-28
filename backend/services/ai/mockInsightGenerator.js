@@ -98,6 +98,17 @@ const formatDeadlineReason = (task) => {
   return null;
 };
 
+const getDaysUntilDeadline = (task, now = new Date()) => {
+  if (!task?.deadline) return null;
+  const due = new Date(task.deadline);
+  if (Number.isNaN(due.getTime())) return null;
+  const startToday = new Date(now);
+  startToday.setHours(0, 0, 0, 0);
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  return Math.ceil((dueDay - startToday) / 86400000);
+};
+
 const getSubtaskReason = (task) => {
   if (!task?.subtaskCount) return null;
   const incomplete = task.subtaskCount - task.completedSubtaskCount;
@@ -133,6 +144,210 @@ const getUsedMemoryFields = (context, fields = []) => {
 const getTaskTopics = (task) => [
   ...new Set([...(task?.tags || []), ...getTaskAcademicTopics(task)]),
 ];
+
+const decodeSignalValue = (value = "") => value.replace(/_/g, " ");
+
+const getRecentTopic = (context) => {
+  const signal = (context.memory?.conversationSignals || [])
+    .filter((item) => item.startsWith("recent_topic:"))
+    .slice(-1)[0];
+  return signal ? decodeSignalValue(signal.split(":").slice(1).join(":")) : null;
+};
+
+const getRecentFriction = (context) => {
+  const signal = (context.memory?.conversationSignals || [])
+    .filter((item) => item.startsWith("recent_friction:"))
+    .slice(-1)[0];
+  return signal ? signal.split(":")[1] : null;
+};
+
+const getQueryFriction = (query = "") => {
+  const normalized = query.toString().toLowerCase();
+  if (/\b(wasted|waste|lost the day|lost the week|whole day|whole week|did nothing)\b/.test(normalized)) return "recovery";
+  if (/\b(overwhelmed|too much|stressed|panic)\b/.test(normalized)) return "overloaded";
+  if (/\b(confused|confusing|don.?t understand|do not understand|unclear|stuck|blocked|feel lost|am lost|m lost)\b/.test(normalized)) {
+    return "confused";
+  }
+  if (/\b(distracted|can.?t focus|cannot focus)\b/.test(normalized)) return "distracted";
+  return null;
+};
+
+const getWorkloadPressure = (context) => {
+  const overdue = getContextTasks(context, "overdueTasks").length;
+  const today = getContextTasks(context, "todayTasks").length;
+  const dueSoon = getContextTasks(context, "dueSoonTasks").length;
+  const highPriority = context.taskSummary?.highPriorityPending || 0;
+  const pending = context.taskSummary?.pending || 0;
+
+  const score = overdue * 3 + today * 2 + dueSoon + highPriority * 1.5;
+  const level = score >= 8 || overdue >= 3
+    ? "high"
+    : score >= 4 || overdue > 0 || today >= 2 || (dueSoon > 0 && highPriority > 0)
+      ? "medium"
+      : "low";
+
+  return { level, score, overdue, today, dueSoon, highPriority, pending };
+};
+
+const getTaskPriorityScore = (context, task, now = new Date()) => {
+  if (!task) return 0;
+
+  const daysUntil = getDaysUntilDeadline(task, now);
+  const subtaskBacklog = Math.max(
+    0,
+    (task.subtaskCount || 0) - (task.completedSubtaskCount || 0)
+  );
+  const taskTopics = getTaskTopics(task);
+  const weaknessMatch = taskTopics.some((topic) => context.weaknesses?.includes(topic));
+  const recentTopic = getRecentTopic(context);
+
+  let score = priorityWeight[task.priority] || 0;
+  if (daysUntil !== null) {
+    if (daysUntil < 0) score += 8;
+    else if (daysUntil === 0) score += 6;
+    else if (daysUntil <= 2) score += 4;
+    else if (daysUntil <= 7) score += 2;
+  }
+  if (subtaskBacklog > 0) score += Math.min(3, subtaskBacklog);
+  if (weaknessMatch) score += 2;
+  if (recentTopic && taskMatchesTopic(task, recentTopic)) score += 1;
+
+  return score;
+};
+
+const sortByStudyPriority = (context, tasks, now = new Date()) =>
+  uniqueTasks(filterMeaningfulTasks(tasks))
+    .map((task) => ({
+      task,
+      score: getTaskPriorityScore(context, task, now),
+      daysUntil: getDaysUntilDeadline(task, now),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return sortByPriorityAndDeadline([a.task, b.task])[0] === a.task ? -1 : 1;
+    });
+
+const getPriorityReason = (context, task, now = new Date()) => {
+  const reasons = [];
+  const daysUntil = getDaysUntilDeadline(task, now);
+  const deadlineReason = formatDeadlineReason(task);
+  if (deadlineReason) reasons.push(deadlineReason);
+  else if (daysUntil !== null && daysUntil <= 7) {
+    reasons.push(`due in ${daysUntil} ${daysUntil === 1 ? "day" : "days"}`);
+  }
+  if (task.priority === "high") reasons.push("high priority");
+
+  const subtaskReason = getSubtaskReason(task);
+  if (subtaskReason) reasons.push(subtaskReason);
+
+  const taskTopics = getTaskTopics(task);
+  const weakness = taskTopics.find((topic) => context.weaknesses?.includes(topic));
+  if (weakness) reasons.push(`${weakness} has been a weaker area`);
+
+  const recentTopic = getRecentTopic(context);
+  if (recentTopic && taskMatchesTopic(task, recentTopic)) {
+    reasons.push(`matches your recent ${recentTopic} focus`);
+  }
+
+  return reasons;
+};
+
+const getStudyPlan = ({ context, query = "", now = new Date() }) => {
+  const ranked = sortByStudyPriority(
+    context,
+    [
+      ...getContextTasks(context, "overdueTasks"),
+      ...getContextTasks(context, "todayTasks"),
+      ...getContextTasks(context, "dueSoonTasks"),
+      ...getContextTasks(context, "pendingTasks"),
+    ],
+    now
+  );
+  const selected = ranked.slice(0, 3).map(({ task, score, daysUntil }) => ({
+    task,
+    score,
+    daysUntil,
+    reasons: getPriorityReason(context, task, now),
+  }));
+  const workload = getWorkloadPressure(context);
+  const friction = getQueryFriction(query) || getRecentFriction(context);
+  const avgFocusMinutes = Math.max(15, Math.round((context.avgFocusSeconds || 1500) / 60));
+  const firstBlockMinutes =
+    friction === "recovery" || friction === "overloaded" || workload.level === "high"
+      ? Math.min(25, avgFocusMinutes)
+      : Math.min(45, avgFocusMinutes);
+  const reviewBlockMinutes = Math.max(5, Math.min(15, Math.round(firstBlockMinutes / 3)));
+
+  const blocks = selected.length
+    ? [
+        {
+          label: "Stabilize",
+          minutes: firstBlockMinutes,
+          task: compactTask(selected[0].task),
+          action: `Start ${selected[0].task.title} and stop at one visible checkpoint.`,
+        },
+        selected[1]
+          ? {
+              label: "Second pass",
+              minutes: firstBlockMinutes,
+              task: compactTask(selected[1].task),
+              action: `Move to ${selected[1].task.title} only after the first checkpoint is real.`,
+            }
+          : null,
+        {
+          label: "Review",
+          minutes: reviewBlockMinutes,
+          task: selected[0] ? compactTask(selected[0].task) : null,
+          action: "Write what changed, what is still stuck, and the next smallest step.",
+        },
+      ].filter(Boolean)
+    : [];
+
+  return {
+    workload,
+    friction,
+    primary: selected[0] || null,
+    rankedTasks: selected,
+    blocks,
+  };
+};
+
+export const buildStudyPlanSummary = (context, query = "", now = new Date()) => {
+  const plan = getStudyPlan({ context, query, now });
+  return {
+    workload: plan.workload,
+    friction: plan.friction,
+    primaryTask: plan.primary
+      ? {
+          ...compactTask(plan.primary.task),
+          score: plan.primary.score,
+          daysUntil: plan.primary.daysUntil,
+          reasons: plan.primary.reasons,
+        }
+      : null,
+    rankedTasks: plan.rankedTasks.map((item) => ({
+      ...compactTask(item.task),
+      score: item.score,
+      daysUntil: item.daysUntil,
+      reasons: item.reasons,
+    })),
+    suggestedBlocks: plan.blocks,
+  };
+};
+
+const taskMatchesTopic = (task, topic) => {
+  if (!topic) return false;
+  const normalizedTopic = normalizeTitle(topic);
+  const title = normalizeTitle(task?.title);
+  const topics = getTaskTopics(task).map(normalizeTitle);
+  return title.includes(normalizedTopic) || topics.includes(normalizedTopic);
+};
+
+const getRecentStudyContextReason = (context, task) => {
+  const recentTopic = getRecentTopic(context);
+  if (!recentTopic || !taskMatchesTopic(task, recentTopic)) return null;
+  return `Earlier you flagged ${recentTopic} as a study area, and this task matches it.`;
+};
 
 const getTopicPersonalization = (context, task) => {
   const taskTopics = getTaskTopics(task);
@@ -193,7 +408,15 @@ const getPersonalizationForTask = (context, task) => {
 
   const topicSignal = getTopicPersonalization(context, task);
   const windowSignal = getActiveWindowPersonalization(context);
-  const selected = [topicSignal, windowSignal].filter(Boolean);
+  const recentReason = getRecentStudyContextReason(context, task);
+  const recentSignal = recentReason
+    ? {
+        text: recentReason,
+        fields: ["conversationSignals"],
+        signals: { recentTopic: getRecentTopic(context) },
+      }
+    : null;
+  const selected = [recentSignal, topicSignal, windowSignal].filter(Boolean);
 
   if (selected.length === 0) {
     return {
@@ -250,6 +473,17 @@ const getGeneralPersonalReasons = (context) => {
     behavioralSignalsUsed.procrastinationRisk = context.procrastinationRisk;
   }
 
+  const recentTopic = getRecentTopic(context);
+  const recentFriction = getRecentFriction(context);
+  if (recentTopic) {
+    reasons.push(`recent study focus: ${recentTopic}`);
+    memoryFieldsUsed.push("conversationSignals");
+    behavioralSignalsUsed.recentTopic = recentTopic;
+  }
+  if (recentFriction) {
+    behavioralSignalsUsed.recentFriction = recentFriction;
+  }
+
   return {
     reasons,
     memoryFieldsUsed: [...new Set(memoryFieldsUsed)],
@@ -303,14 +537,32 @@ const compactTask = (task) =>
     : null;
 
 const getNextTask = (context) =>
-  sortByPriorityAndDeadline(
-    uniqueTasks([
+  sortByStudyPriority(
+    context,
+    [
       ...getContextTasks(context, "overdueTasks"),
       ...getContextTasks(context, "todayTasks"),
       ...getContextTasks(context, "dueSoonTasks"),
       ...getContextTasks(context, "pendingTasks"),
-    ])
-  )[0];
+    ]
+  )[0]?.task;
+
+const getRecoveryOpening = (context, query = "") => {
+  const friction = getQueryFriction(query) || getRecentFriction(context);
+  if (friction === "recovery") {
+    return "Do not try to repay the whole day at once.";
+  }
+  if (friction === "overloaded") {
+    return "Keep this small so it does not turn into another planning loop.";
+  }
+  if (friction === "confused" || friction === "stuck") {
+    return "Start by making the confusing part visible, not by trying to finish everything.";
+  }
+  if (friction === "distracted") {
+    return "Use a short block and remove one distraction before you start.";
+  }
+  return null;
+};
 
 const buildHeaderContext = (context) => {
   if (!hasPersonalization(context)) {
@@ -382,8 +634,9 @@ const buildHeaderContext = (context) => {
   };
 };
 
-const buildNextTaskInsight = ({ mode, context }) => {
+const buildNextTaskInsight = ({ mode, context, query }) => {
   const task = getNextTask(context);
+  const plan = getStudyPlan({ context, query });
 
   if (!task) {
     const sourceSignals = {
@@ -403,9 +656,7 @@ const buildNextTaskInsight = ({ mode, context }) => {
 
   const personal = getPersonalizationForTask(context, task);
   const reasons = [
-    formatDeadlineReason(task),
-    task.priority === "high" ? "high priority" : null,
-    getSubtaskReason(task),
+    ...getPriorityReason(context, task),
     ...personal.reasons,
   ].filter(Boolean);
 
@@ -414,6 +665,8 @@ const buildNextTaskInsight = ({ mode, context }) => {
     overdueTaskCount: getContextTasks(context, "overdueTasks").length,
     todayTaskCount: getContextTasks(context, "todayTasks").length,
     dueSoonTaskCount: getContextTasks(context, "dueSoonTasks").length,
+    workloadPressure: plan.workload,
+    priorityScore: plan.primary?.score || 0,
     incompleteSubtaskCount:
       (task.subtaskCount || 0) - (task.completedSubtaskCount || 0),
   };
@@ -421,9 +674,12 @@ const buildNextTaskInsight = ({ mode, context }) => {
   return {
     type: mode,
     title: `Focus on ${task.title}`,
-    recommendation: `Focus on ${task.title} next${personal.recommendationSuffix}.`,
+    recommendation: `${
+      getRecoveryOpening(context, query) ? `${getRecoveryOpening(context, query)} ` : ""
+    }${task.title} is the best first move because it carries the strongest mix of deadline, priority, and study-risk signals. Start with one visible checkpoint, then reassess instead of trying to clear everything at once${personal.recommendationSuffix}.`,
     why: reasons.length > 0 ? reasons : ["It has the strongest urgency signal in this room."],
     taskId: task.id,
+    suggestedBlocks: plan.blocks.slice(0, 2),
     audit: buildAudit({
       mode,
       context,
@@ -435,6 +691,7 @@ const buildNextTaskInsight = ({ mode, context }) => {
 };
 
 const buildBehindScheduleInsight = ({ mode, context }) => {
+  const plan = getStudyPlan({ context });
   const overdueCount = getContextTasks(context, "overdueTasks").length;
   const highPriorityPending = context.taskSummary?.highPriorityPending || 0;
   const inactivityRisk = context.inactivityRisk;
@@ -453,20 +710,24 @@ const buildBehindScheduleInsight = ({ mode, context }) => {
     highPriorityPending,
     inactivityRisk,
     pendingTaskCount: context.taskSummary?.pending || 0,
+    workloadPressure: plan.workload,
+    primaryTask: plan.primary ? compactTask(plan.primary.task) : null,
   };
 
   return {
     type: mode,
     title: isBehind ? "You are slightly behind" : "Schedule looks stable",
     recommendation: isBehind
-      ? `You are ${severity}. ${overdueCount} overdue ${overdueCount === 1 ? "task needs" : "tasks need"} attention.`
+      ? `You are ${severity}, but the fix is prioritization, not panic. Start with ${plan.primary?.task?.title || "the most urgent task"} and make one checkpoint visible before touching anything else.`
       : "Your schedule looks stable based on current deadlines and activity.",
     why: [
       overdueCount > 0 ? `${overdueCount} overdue ${overdueCount === 1 ? "task" : "tasks"}` : null,
       highPriorityPending > 0 ? `${highPriorityPending} unfinished high priority ${highPriorityPending === 1 ? "task" : "tasks"}` : null,
       canUseBehaviorRisk && inactivityRisk !== "low" ? `inactivity risk is ${inactivityRisk}` : null,
       ...personal.reasons,
+      plan.primary ? `best recovery anchor: ${plan.primary.task.title}` : null,
     ].filter(Boolean),
+    suggestedBlocks: plan.blocks.slice(0, 2),
     audit: buildAudit({
       mode,
       context,
@@ -478,13 +739,15 @@ const buildBehindScheduleInsight = ({ mode, context }) => {
 };
 
 const buildRoomAttentionInsight = ({ mode, context }) => {
-  const attentionTasks = sortByPriorityAndDeadline(
-    uniqueTasks([
+  const plan = getStudyPlan({ context });
+  const attentionTasks = sortByStudyPriority(
+    context,
+    [
       ...getContextTasks(context, "overdueTasks"),
       ...getContextTasks(context, "bottleneckTasks"),
       ...getContextTasks(context, "dueSoonTasks"),
-    ])
-  ).slice(0, 5);
+    ]
+  ).slice(0, 5).map((item) => item.task);
   const personal = attentionTasks[0]
     ? getPersonalizationForTask(context, attentionTasks[0])
     : getGeneralPersonalReasons(context);
@@ -493,6 +756,7 @@ const buildRoomAttentionInsight = ({ mode, context }) => {
     bottleneckTaskCount: getContextTasks(context, "bottleneckTasks").length,
     dueSoonTaskCount: getContextTasks(context, "dueSoonTasks").length,
     attentionTaskIds: attentionTasks.map((task) => task.id),
+    workloadPressure: plan.workload,
   };
 
   return {
@@ -500,7 +764,7 @@ const buildRoomAttentionInsight = ({ mode, context }) => {
     title: attentionTasks.length > 0 ? "Tasks needing attention" : "No urgent attention needed",
     recommendation:
       attentionTasks.length > 0
-        ? `${attentionTasks[0].title} needs attention first${personal.recommendationSuffix}.`
+        ? `${attentionTasks[0].title} needs attention first. Give it one focused pass before opening anything lower priority${personal.recommendationSuffix}.`
         : "No overdue or blocked tasks stand out right now.",
     why:
       attentionTasks.length > 0
@@ -512,6 +776,7 @@ const buildRoomAttentionInsight = ({ mode, context }) => {
           ].filter(Boolean)
         : ["No overdue tasks, due-soon tasks, or incomplete-subtask bottlenecks were found."],
     tasks: attentionTasks.map(compactTask),
+    suggestedBlocks: plan.blocks.slice(0, 2),
     audit: buildAudit({
       mode,
       context,
@@ -523,13 +788,21 @@ const buildRoomAttentionInsight = ({ mode, context }) => {
 };
 
 const buildTeamSummaryInsight = ({ mode, context }) => {
+  const plan = getStudyPlan({ context });
   const personal = getGeneralPersonalReasons(context);
+  const total = context.taskSummary?.total || 0;
+  const completed = context.taskSummary?.completed || 0;
+  const pending = context.taskSummary?.pending || 0;
+  const overdue = getContextTasks(context, "overdueTasks").length;
+  const completionRate = Math.round((context.taskSummary?.completionRate || 0) * 100);
   const sourceSignals = {
     teammateCount: context.activeTeammates?.length || 0,
-    pendingTaskCount: context.taskSummary?.pending || 0,
-    completedTaskCount: context.taskSummary?.completed || 0,
-    overdueTaskCount: getContextTasks(context, "overdueTasks").length,
+    pendingTaskCount: pending,
+    completedTaskCount: completed,
+    overdueTaskCount: overdue,
     completionRate: context.taskSummary?.completionRate || 0,
+    workloadPressure: plan.workload,
+    primaryTask: plan.primary ? compactTask(plan.primary.task) : null,
   };
 
   return {
@@ -537,14 +810,28 @@ const buildTeamSummaryInsight = ({ mode, context }) => {
     title: context.workspace.type === "personal" ? "Personal workspace summary" : "Team study momentum",
     recommendation:
       context.workspace.type === "personal"
-        ? `${context.taskSummary?.pending || 0} personal tasks are still pending.`
-        : `Your team is active, but ${getContextTasks(context, "overdueTasks").length} ${getContextTasks(context, "overdueTasks").length === 1 ? "task needs" : "tasks need"} attention.`,
+        ? total > 0
+          ? `You have completed ${completed} of ${total} tasks (${completionRate}%). ${
+              overdue > 0
+                ? `${overdue} overdue ${overdue === 1 ? "task needs" : "tasks need"} attention first.`
+                : `${pending} ${pending === 1 ? "task is" : "tasks are"} still open.`
+            }`
+          : "No task history is available in this workspace yet."
+        : total > 0
+          ? `Your team has completed ${completed} of ${total} tasks (${completionRate}%). ${
+              overdue > 0
+                ? `${overdue} overdue ${overdue === 1 ? "task needs" : "tasks need"} attention.`
+                : "No overdue task stands out right now."
+            }`
+          : "No team task history is available in this workspace yet.",
     why: [
-      `${context.taskSummary?.completed || 0} of ${context.taskSummary?.total || 0} tasks are completed`,
-      `${context.taskSummary?.pending || 0} tasks are pending`,
-      `${getContextTasks(context, "overdueTasks").length} tasks are overdue`,
+      `${completed} of ${total} tasks are completed`,
+      `${pending} ${pending === 1 ? "task is" : "tasks are"} pending`,
+      `${overdue} ${overdue === 1 ? "task is" : "tasks are"} overdue`,
+      plan.primary ? `next best focus: ${plan.primary.task.title}` : null,
       ...personal.reasons,
     ],
+    suggestedBlocks: plan.blocks.slice(0, 2),
     audit: buildAudit({
       mode,
       context,
@@ -556,13 +843,8 @@ const buildTeamSummaryInsight = ({ mode, context }) => {
 };
 
 const buildDailyPlanInsight = ({ mode, context }) => {
-  const planTasks = sortByPriorityAndDeadline(
-    uniqueTasks([
-      ...getContextTasks(context, "overdueTasks"),
-      ...getContextTasks(context, "todayTasks"),
-      ...getContextTasks(context, "dueSoonTasks"),
-    ])
-  ).slice(0, 3);
+  const plan = getStudyPlan({ context });
+  const planTasks = plan.rankedTasks.map((item) => item.task);
   const personal = planTasks[0]
     ? getPersonalizationForTask(context, planTasks[0])
     : getGeneralPersonalReasons(context);
@@ -572,23 +854,30 @@ const buildDailyPlanInsight = ({ mode, context }) => {
     dueSoonTaskCount: getContextTasks(context, "dueSoonTasks").length,
     avgFocusSeconds: context.avgFocusSeconds || 0,
     planTaskIds: planTasks.map((task) => task.id),
+    workloadPressure: plan.workload,
+    prioritizedScores: plan.rankedTasks.map((item) => ({
+      taskId: item.task.id,
+      score: item.score,
+    })),
   };
 
   return {
     type: mode,
-    title: "Today's finish plan",
+    title: plan.workload.level === "high" ? "Stabilize today's workload" : "Today's study plan",
     recommendation:
       planTasks.length > 1
-        ? `Finish ${planTasks[0].title} first, then work through ${planTasks.length - 1} more priority ${planTasks.length - 1 === 1 ? "task" : "tasks"}.`
+        ? `Start with ${planTasks[0].title}. Treat the first block as a checkpoint, not a promise to finish everything. Then move to ${planTasks[1].title} only if the first checkpoint is real.`
         : planTasks.length === 1
-          ? `Finish ${planTasks[0].title} today${personal.recommendationSuffix}.`
+          ? `Make ${planTasks[0].title} today's main target and define one checkpoint before starting${personal.recommendationSuffix}.`
           : "No deadlines demand completion today.",
     why: [
       getContextTasks(context, "overdueTasks").length ? `${getContextTasks(context, "overdueTasks").length} overdue ${getContextTasks(context, "overdueTasks").length === 1 ? "task" : "tasks"}` : null,
       getContextTasks(context, "todayTasks").length ? `${getContextTasks(context, "todayTasks").length} due today` : null,
+      plan.primary?.reasons?.[0] ? `first pick reason: ${plan.primary.reasons[0]}` : null,
       ...personal.reasons,
     ].filter(Boolean),
     suggestedTasks: planTasks.map(compactTask),
+    suggestedBlocks: plan.blocks,
     audit: buildAudit({
       mode,
       context,
@@ -647,32 +936,54 @@ const buildDueTomorrowInsight = ({ mode, context }) => {
   };
 };
 
-const buildProductivityAdviceInsight = ({ mode, context }) => {
+const buildProductivityAdviceInsight = ({ mode, context, query }) => {
+  const plan = getStudyPlan({ context, query });
   const personal = getGeneralPersonalReasons(context);
   const canUseBehaviorRisk = hasPersonalization(context);
+  const queryFriction = getQueryFriction(query);
   const sourceSignals = {
     procrastinationRisk: context.procrastinationRisk,
     avgFocusSeconds: context.avgFocusSeconds || 0,
     confidence: context.memory?.confidence || 0,
+    queryFriction,
+    workloadPressure: plan.workload,
+    primaryTask: plan.primary ? compactTask(plan.primary.task) : null,
   };
 
   return {
     type: mode,
-    title: "Productivity signal",
+    title:
+      queryFriction === "recovery"
+        ? "Recovery plan"
+        : queryFriction === "overloaded"
+          ? "Overload control"
+          : "Productivity signal",
     recommendation:
-      !canUseBehaviorRisk
+      queryFriction === "recovery"
+        ? `Treat this as recoverable, not ruined. ${plan.primary ? `Use ${plan.primary.task.title} as the anchor` : "Pick one small task target"} and do one short reset block.`
+        : queryFriction === "overloaded"
+          ? `Reduce the list to one visible next step. ${plan.primary ? `${plan.primary.task.title} is the clearest pressure point` : "Pick the clearest deadline pressure"} and ignore the rest for one short session.`
+        : queryFriction === "distracted"
+          ? `Make the session easier to start: ${plan.primary ? `open ${plan.primary.task.title}` : "pick one task"}, set a short timer, and aim for five useful minutes before deciding whether to continue.`
+        : queryFriction === "confused"
+          ? "Start by isolating the confusing part. Choose one related task or topic and write the smallest question you need to answer first."
+      : !canUseBehaviorRisk
         ? "More study sessions are needed before personalized productivity advice."
         : context.procrastinationRisk === "high"
-        ? "Reduce scope and start a short focus session on the most overdue task."
-        : `Your average focus block is ${formatFocusDuration(context.avgFocusSeconds)}. Keep sessions consistent before increasing duration.`,
+        ? "Reduce the scope: pick the most overdue task, define a tiny finish line, and start one short focus session."
+        : `Your average focus block is ${formatFocusDuration(context.avgFocusSeconds)}. Keep that rhythm steady before increasing duration.`,
     why: uniqueStrings([
       canUseBehaviorRisk ? `procrastination risk is ${context.procrastinationRisk}` : null,
       canUseBehaviorRisk
         ? `memory confidence is ${context.memory.confidence}`
         : "More study sessions are needed before personalized advice.",
+      plan.primary ? `best next anchor: ${plan.primary.task.title}` : null,
+      plan.workload.level !== "low" ? `workload pressure is ${plan.workload.level}` : null,
       ...personal.reasons,
     ]),
     risk: canUseBehaviorRisk ? context.procrastinationRisk : null,
+    suggestedTasks: plan.rankedTasks.map((item) => compactTask(item.task)),
+    suggestedBlocks: plan.blocks,
     audit: buildAudit({
       mode,
       context,
@@ -692,7 +1003,7 @@ const buildProductivityAdviceInsight = ({ mode, context }) => {
 
 export const isValidCopilotMode = (mode) => MODES.has(mode);
 
-export const generateMockInsight = ({ mode, context }) => {
+export const generateMockInsight = ({ mode, context, query = "" }) => {
   const headerContext = buildHeaderContext(context);
   const withHeader = (insight) => ({
     ...insight,
@@ -701,7 +1012,7 @@ export const generateMockInsight = ({ mode, context }) => {
 
   switch (mode) {
     case "next_task":
-      return withHeader(buildNextTaskInsight({ mode, context }));
+      return withHeader(buildNextTaskInsight({ mode, context, query }));
     case "behind_schedule":
       return withHeader(buildBehindScheduleInsight({ mode, context }));
     case "room_attention":
@@ -713,7 +1024,7 @@ export const generateMockInsight = ({ mode, context }) => {
     case "due_tomorrow":
       return withHeader(buildDueTomorrowInsight({ mode, context }));
     case "productivity_advice":
-      return withHeader(buildProductivityAdviceInsight({ mode, context }));
+      return withHeader(buildProductivityAdviceInsight({ mode, context, query }));
     default:
       return withHeader({
         type: "unknown",

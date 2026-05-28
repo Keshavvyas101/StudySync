@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema(
         "due_soon",
         "member_joined",
         "member_left",
+    
       ],
       required: true,
       index: true,

@@ -1,8 +1,99 @@
 @import "tailwindcss";
 
-
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ─────────────────────────────────────────────
+   LIGHT MODE
+   Philosophy: white surfaces, soft blue-gray
+   page bg, accent used only for intent.
+───────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Page & panel backgrounds */
+  --ss-bg:            #edf1f7;   /* page wash — cool gray, not blue */
+  --ss-bg-soft:       #f4f6fa;   /* secondary page zone */
+  --ss-panel:         #ffffff;   /* sidebar, focus panel chrome */
+  --ss-surface:       #ffffff;   /* cards, inputs */
+  --ss-surface-raised:#fafbfd;   /* modals, dropdowns — barely elevated */
+  --ss-surface-subtle:#f1f4f9;   /* hover fills, tag backgrounds */
+
+  /* Borders */
+  --ss-border:        #dce3ee;   /* default divider */
+  --ss-border-strong: #bec9d9;   /* stronger separation */
+
+  /* Text */
+  --ss-text:          #1a2332;   /* body — warm near-black, not pure */
+  --ss-text-strong:   #0d1520;   /* headings, important labels */
+  --ss-muted:         #677489;   /* secondary labels */
+  --ss-muted-strong:  #4b5a6e;   /* medium-emphasis labels */
+
+  /* Accent — indigo, used sparingly for intent only */
+  --ss-accent:        #4f46e5;
+  --ss-accent-hover:  #4338ca;
+  --ss-accent-soft:   #eef2ff;   /* tinted background for active states */
+  --ss-accent-border: #c7d2fe;   /* border for accent-tinted zones */
+  --ss-focus-ring:    rgba(79, 70, 229, 0.18);
+
+  /* Semantic */
+  --ss-danger:        #dc2626;
+  --ss-success:       #059669;
+  --ss-warning:       #b45309;
+
+  /* Shadows — neutral, not colorized */
+  --ss-shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.05);
+  --ss-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.07);
+  --ss-shadow-lg:  0 14px 40px rgba(15, 23, 42, 0.10);
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE
+   Philosophy: near-neutral dark surfaces with
+   minimal cool tint. No blue flooding.
+   Depth comes from layered neutral grays.
+───────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  /* Page & panel backgrounds — near-neutral, slight cool cast */
+  --ss-bg:            #0e0f13;   /* deepest layer */
+  --ss-bg-soft:       #121418;   /* secondary page zone */
+  --ss-panel:         #17191f;   /* sidebar, focus panel chrome */
+  --ss-surface:       #1d1f26;   /* cards, inputs */
+  --ss-surface-raised:#232630;   /* modals, dropdowns — one step up */
+  --ss-surface-subtle:#141619;   /* hover fills, tag backgrounds */
+
+  /* Borders — neutral, not blue */
+  --ss-border:        #2b2e3a;
+  --ss-border-strong: #3a3f4f;
+
+  /* Text */
+  --ss-text:          #dde3ec;   /* body */
+  --ss-text-strong:   #f0f4f9;   /* headings */
+  --ss-muted:         #8a96a8;   /* secondary labels */
+  --ss-muted-strong:  #aab4c4;   /* medium-emphasis labels */
+
+  /* Accent — slightly desaturated in dark for comfort */
+  --ss-accent:        #7872ee;   /* softer than raw indigo-400 */
+  --ss-accent-hover:  #6a64e6;
+  --ss-accent-soft:   rgba(120, 114, 238, 0.12);
+  --ss-accent-border: rgba(120, 114, 238, 0.28);
+  --ss-focus-ring:    rgba(120, 114, 238, 0.22);
+
+  /* Semantic */
+  --ss-danger:        #f87171;
+  --ss-success:       #34d399;
+  --ss-warning:       #fbbf24;
+
+  /* Shadows — deeper but not blue-tinted */
+  --ss-shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.28);
+  --ss-shadow-md:  0 6px 20px rgba(0, 0, 0, 0.36);
+  --ss-shadow-lg:  0 18px 50px rgba(0, 0, 0, 0.46);
+}
+
+/* ─────────────────────────────────────────────
+   BASE
+───────────────────────────────────────────── */
 html,
 body,
 #root {
@@ -11,3 +102,25 @@ body,
   margin: 0;
 }
 
+body {
+  background: var(--ss-bg);
+  color: var(--ss-text);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--ss-accent-soft);
+  color: var(--ss-text-strong);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ss-accent);
+  outline-offset: 2px;
+}

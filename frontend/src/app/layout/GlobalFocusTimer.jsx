@@ -15,7 +15,7 @@ const GlobalFocusTimer = () => {
     <button
       type="button"
       onClick={() => openFocusSession(taskId)}
-      className="flex min-w-0 max-w-[44vw] items-center gap-2 rounded-full border border-indigo-200/80 bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm shadow-indigo-500/10 backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:border-indigo-300 hover:text-indigo-600 dark:border-indigo-900/70 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:border-indigo-700 dark:hover:text-indigo-300 sm:max-w-[360px]"
+      className="topbar-control topbar-focus-timer min-w-0 max-w-[44vw] sm:max-w-[360px]"
       title={`Open focus session for ${taskTitle}`}
     >
       <span className={`h-2 w-2 rounded-full ${isPaused ? "bg-amber-400" : "bg-emerald-400"}`} />

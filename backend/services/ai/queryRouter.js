@@ -1,3 +1,9 @@
+import {
+  getJarvisResponseStyleHint,
+  getJarvisRouteHint,
+  JARVIS_INTENTS,
+} from "./jarvisSystemPrompt.js";
+
 export const ROUTES = {
   STUDYSYNC_INTENT: "STUDYSYNC_INTENT",
   GENERAL_REASONING: "GENERAL_REASONING",
@@ -22,11 +28,17 @@ const hasAny = (normalized, patterns) =>
 
 const ACTION_PATTERNS = [
   /\b(create|add|make)\b.*\b(task|subtask|todo|deadline|reminder)\b/,
+  /^(buy|get|submit|finish|complete|revise|study|read|prepare|practice|solve|review|call|email|message|meet|attend)\b.*\b(today|tomorrow|tonight|sunday|monday|tuesday|wednesday|thursday|friday|saturday|reminder)\b/,
+  /\b(i need to|need to|i have to|have to|got to)\b.*\b(today|tomorrow|tonight|sunday|monday|tuesday|wednesday|thursday|friday|saturday|reminder)\b/,
   /\b(delete|remove|drop|clear)\b.*\b(task|subtask|todo|deadline)\b/,
   /\b(update|edit|change|modify|rename|move|reschedule|postpone)\b.*\b(task|deadline|due|priority|status)\b/,
   /\b(assign|reassign)\b.*\b(to)\b/,
+  /\b(can|could|should)\b\s+[a-z0-9]+\s+\b(handle|do|take|own|work on)\b/,
+  /^[a-z0-9]+\s+\b(can|could|should|will)\b\s+\b(handle|do|take|own|work on)\b/,
   /\b(move|reschedule|postpone)\b.*\b(to|for|by|deadline|due)\b/,
   /\b(break|split)\b.*\b(subtasks|subtask|steps)\b/,
+  /\b(break|split)\b.*\b(down|up)\b/,
+  /\btoo (big|large|long|much)\b.*\b(break|split)\b/,
   /\b(archive|hide)\b/,
   /\b(mark|set|complete|finish)\b.*\b(done|completed|complete|task|todo|priority|deadline)\b/,
   /\b(start|begin)\b.*\b(focus|timer|session)\b/,
@@ -36,19 +48,27 @@ const ACTION_PATTERNS = [
 const STUDYSYNC_PATTERNS = [
   {
     mode: "next_task",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "what should i study next",
       "what should i study",
       "what should i work on",
       "what should i do now",
       "what to focus on",
+      "what should i focus on first",
+      "what should i revise today",
+      "what should i revise",
       "next task",
       "what next",
       "where do i start",
+      "i don t know what to study",
+      "i dont know what to study",
+      "i do not know what to study",
     ],
   },
   {
     mode: "behind_schedule",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "am i behind",
       "behind schedule",
@@ -56,10 +76,15 @@ const STUDYSYNC_PATTERNS = [
       "am i on track",
       "are we behind",
       "schedule status",
+      "i am falling behind",
+      "i m falling behind",
+      "i feel behind",
+      "catch up",
     ],
   },
   {
     mode: "room_attention",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "what needs attention",
       "what is urgent",
@@ -67,10 +92,14 @@ const STUDYSYNC_PATTERNS = [
       "priority tasks",
       "high priority",
       "needs focus",
+      "focus first",
+      "most important",
+      "what is most important",
     ],
   },
   {
     mode: "team_summary",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "how is our team doing",
       "how is the team doing",
@@ -82,6 +111,7 @@ const STUDYSYNC_PATTERNS = [
   },
   {
     mode: "daily_plan",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "what should i finish today",
       "what should i complete today",
@@ -89,10 +119,18 @@ const STUDYSYNC_PATTERNS = [
       "today plan",
       "todays plan",
       "daily plan",
+      "help me plan revision",
+      "make a revision plan",
+      "help me recover this week",
+      "recover this week",
+      "plan revision",
+      "revision plan",
+      /\b(i have|got|there is|there s)\b.*\b(exam|test|quiz)\b.*\b(today|tomorrow|tonight|in \d+ days?|next week|this week|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
     ],
   },
   {
     mode: "due_tomorrow",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: [
       "due tomorrow",
       "what is due tomorrow",
@@ -103,14 +141,26 @@ const STUDYSYNC_PATTERNS = [
   },
   {
     mode: "daily_plan",
+    jarvisIntent: JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
     patterns: ["due today", "what is due today", "today deadline"],
   },
   {
     mode: "productivity_advice",
+    jarvisIntent: JARVIS_INTENTS.COACHING_QUERY,
     patterns: [
       "focus window",
       "productivity",
       "procrastination",
+      "no mood to study",
+      "not in the mood to study",
+      "don t feel like studying",
+      "dont feel like studying",
+      /\b(task|chapter|assignment|project)\b.*\btoo (big|large|long|much)\b/,
+      "wasted whole day",
+      "wasted the whole day",
+      "wasted my day",
+      "did nothing today",
+      "lost the day",
     ],
   },
 ];
@@ -120,8 +170,8 @@ const GENERAL_PATTERNS = [
   /\b(compare|difference between|versus|vs)\b/,
   /\b(how do i|how should i|best way|tips|advice|help me|plan)\b/,
   /\b(what is|what are|why does|why do)\b/,
-  /\b(bfs|dfs|dijkstra|algorithm|concept|exam|interview|revision)\b/,
-  /\b(i feel|feeling|distracted|overwhelmed|confused|stuck)\b/,
+  /\b(bfs|dfs|dijkstra|algorithm|concept|interview|normalization|dbms|operating system|compiler|calculus)\b/,
+  /\b(i feel|feeling|distracted|overwhelmed|confused|confusing|stuck|wasted|did nothing|lost the day)\b/,
 ];
 
 const buildResult = ({
@@ -132,6 +182,7 @@ const buildResult = ({
   normalizedQuery,
   reasoning,
   mode = null,
+  jarvisIntent = null,
 }) => ({
   route,
   confidence,
@@ -140,6 +191,7 @@ const buildResult = ({
   normalizedQuery,
   reasoning,
   mode,
+  jarvisIntent,
 });
 
 export const routeQuery = (query = "") => {
@@ -165,6 +217,21 @@ export const routeQuery = (query = "") => {
       originalQuery,
       normalizedQuery,
       reasoning: "The query asks to mutate StudySync data, so it must stop at an approval boundary.",
+      jarvisIntent: "ACTION_REQUEST",
+    });
+  }
+
+  const jarvisRouteHint = getJarvisRouteHint(normalizedQuery);
+  if (jarvisRouteHint) {
+    return buildResult({
+      route: ROUTES[jarvisRouteHint.route],
+      confidence: jarvisRouteHint.confidence,
+      matchedPattern: jarvisRouteHint.matchedPattern,
+      originalQuery,
+      normalizedQuery,
+      reasoning: jarvisRouteHint.reasoning,
+      mode: jarvisRouteHint.mode,
+      jarvisIntent: jarvisRouteHint.intent,
     });
   }
 
@@ -179,6 +246,7 @@ export const routeQuery = (query = "") => {
         normalizedQuery,
         reasoning: "The query matches deterministic StudySync task, deadline, focus, or team intelligence.",
         mode: intent.mode,
+        jarvisIntent: intent.jarvisIntent || JARVIS_INTENTS.STUDYSYNC_CONTEXT_QUERY,
       });
     }
   }
@@ -223,12 +291,15 @@ export const routeQuery = (query = "") => {
 
 export const inferResponseStyle = (query = "", route = ROUTES.UNKNOWN) => {
   const normalized = normalize(query);
+  const jarvisStyle = getJarvisResponseStyleHint(normalized);
+  if (jarvisStyle) return jarvisStyle;
   if (route === ROUTES.ACTION_REQUEST) return "boundary_refusal";
   if (route === ROUTES.UNKNOWN) return "clarify";
   if (/\bcompare|difference|vs|versus\b/.test(normalized)) return "compare";
+  if (/\b(what should i study|what should i work on|what to focus on|where do i start|i don t know what to study|i dont know what to study)\b/.test(normalized)) return "advise";
   if (/\bplan|schedule|session|today|week\b/.test(normalized)) return "plan";
   if (/\bsummarize|summary|progress\b/.test(normalized)) return "summarize";
   if (/\bexplain|teach|what is|what are|define\b/.test(normalized)) return "explain";
-  if (/\badvice|tips|best way|distracted|focus|overwhelmed\b/.test(normalized)) return "advise";
+  if (/\badvice|tips|best way|distracted|focus|overwhelmed|confused|confusing|stuck|wasted|did nothing\b/.test(normalized)) return "advise";
   return "direct_answer";
 };

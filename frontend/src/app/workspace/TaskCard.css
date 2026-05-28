@@ -1,36 +1,68 @@
 /* ================= CARD ================= */
+.task-card-shell {
+  background: var(--ss-surface-raised) !important;
+  border-color: var(--ss-border) !important;
+  box-shadow: var(--ss-shadow-sm) !important;
+}
+
+.task-card-shell:hover {
+  border-color: var(--ss-border-strong) !important;
+  box-shadow: var(--ss-shadow-md) !important;
+}
+
+.task-card-shell input,
+.task-card-shell textarea,
+.task-card-shell select {
+  background-color: var(--ss-surface) !important;
+  border-color: var(--ss-border) !important;
+  color: var(--ss-text) !important;
+}
+
+.task-card-shell input:focus,
+.task-card-shell textarea:focus,
+.task-card-shell select:focus {
+  border-color: var(--ss-accent) !important;
+  box-shadow: 0 0 0 3px var(--ss-focus-ring) !important;
+}
+
+.task-card-shell [class*="bg-white"],
+.task-card-shell [class*="dark:bg-slate-900"] {
+  border-color: var(--ss-border);
+}
+
 .task-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--ss-surface-raised);
+  border: 1px solid var(--ss-border);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 16px;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: var(--ss-shadow-sm);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .task-card:hover {
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  border-color: var(--ss-border-strong);
+  box-shadow: var(--ss-shadow-md);
   transform: translateY(-2px);
 }
 
 .task-card.focused {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 1px rgba(99,102,241,0.6);
+  border-color: var(--ss-accent);
+  box-shadow: 0 0 0 3px var(--ss-focus-ring), var(--ss-shadow-md);
 }
 
 /* Dark */
 .dark .task-card {
-  background: #0f172a;
-  border-color: #1f2937;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  background: var(--ss-surface-raised);
+  border-color: var(--ss-border);
+  box-shadow: var(--ss-shadow-sm);
 }
 
 .dark .task-card:hover {
-  box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+  box-shadow: var(--ss-shadow-md);
 }
 
 /* ================= HEADER ================= */
@@ -46,12 +78,12 @@
   font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
-  color: #0f172a;
+  color: var(--ss-text-strong);
   margin: 0;
 }
 
 .dark .task-header h3 {
-  color: #e5e7eb;
+  color: var(--ss-text-strong);
 }
 
 /* ================= META ================= */
@@ -61,12 +93,12 @@
   gap: 6px;
   align-items: center;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ss-muted);
   margin-top: 4px;
 }
 
 .dark .task-meta {
-  color: #94a3b8;
+  color: var(--ss-muted);
 }
 
 .assignee {
@@ -79,17 +111,18 @@
 
 /* ================= BADGES ================= */
 .priority-badge {
-  background: #f1f5f9;
+  background: var(--ss-surface-subtle);
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
-  color: #334155;
+  color: var(--ss-muted-strong);
+  border: 1px solid var(--ss-border);
 }
 
 .dark .priority-badge {
-  background: #1e293b;
-  color: #cbd5e1;
+  background: var(--ss-surface-subtle);
+  color: var(--ss-muted-strong);
 }
 
 /* Deadline labels */
@@ -100,18 +133,21 @@
 }
 
 .deadline-overdue {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--ss-danger) 12%, transparent);
+  color: var(--ss-danger);
+  border: 1px solid color-mix(in srgb, var(--ss-danger) 28%, transparent);
 }
 
 .deadline-soon {
-  background: #fef9c3;
-  color: #a16207;
+  background: color-mix(in srgb, var(--ss-warning) 14%, transparent);
+  color: var(--ss-warning);
+  border: 1px solid color-mix(in srgb, var(--ss-warning) 28%, transparent);
 }
 
 .deadline-ok {
-  background: #dcfce7;
-  color: #15803d;
+  background: color-mix(in srgb, var(--ss-success) 12%, transparent);
+  color: var(--ss-success);
+  border: 1px solid color-mix(in srgb, var(--ss-success) 26%, transparent);
 }
 
 /* ================= ACTIONS ================= */
@@ -125,17 +161,17 @@
 .task-actions button {
   padding: 4px 6px;
   border-radius: 8px;
-  color: #64748b;
+  color: var(--ss-muted);
 }
 
 .task-actions button:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--ss-surface-subtle);
+  color: var(--ss-text-strong);
 }
 
 .dark .task-actions button:hover {
-  background: #1f2937;
-  color: #e5e7eb;
+  background: var(--ss-surface-subtle);
+  color: var(--ss-text-strong);
 }
 
 /* ================= DROPDOWN ================= */
@@ -143,12 +179,12 @@
   position: absolute;
   top: 110%;
   right: 0;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--ss-surface-raised);
+  border: 1px solid var(--ss-border);
   border-radius: 12px;
   padding: 6px;
   min-width: 140px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  box-shadow: var(--ss-shadow-lg);
   z-index: 50;
 }
 
@@ -162,44 +198,44 @@
 }
 
 .dropdown button:hover {
-  background: #f1f5f9;
+  background: var(--ss-surface-subtle);
 }
 
 .dropdown .danger {
-  color: #dc2626;
+  color: var(--ss-danger);
 }
 
 .dark .dropdown {
-  background: #0f172a;
-  border-color: #334155;
+  background: var(--ss-surface-raised);
+  border-color: var(--ss-border);
 }
 
 .dark .dropdown button:hover {
-  background: #1e293b;
+  background: var(--ss-surface-subtle);
 }
 
 /* ================= PROGRESS ================= */
 .progress-bar {
   height: 6px;
-  background: #f1f5f9;
+  background: var(--ss-surface-subtle);
   border-radius: 999px;
   overflow: hidden;
 }
 
 .progress-bar > div {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  background: linear-gradient(90deg, var(--ss-accent), #7c3aed);
   transition: width 0.3s ease;
 }
 
 .dark .progress-bar {
-  background: #1f2937;
+  background: var(--ss-surface-subtle);
 }
 
 /* ================= BODY ================= */
 .task-body {
   font-size: 14px;
-  color: #475569;
+  color: var(--ss-muted-strong);
   line-height: 1.55;
   display: flex;
   flex-direction: column;
@@ -207,7 +243,7 @@
 }
 
 .dark .task-body {
-  color: #cbd5e1;
+  color: var(--ss-muted-strong);
 }
 
 /* ================= STATUS ================= */
@@ -230,9 +266,9 @@
 .edit-form select {
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #111827;
+  border: 1px solid var(--ss-border);
+  background: var(--ss-surface);
+  color: var(--ss-text);
   font-size: 14px;
 }
 
@@ -240,16 +276,16 @@
 .edit-form textarea:focus,
 .edit-form select:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+  border-color: var(--ss-accent);
+  box-shadow: 0 0 0 3px var(--ss-focus-ring);
 }
 
 .dark .edit-form input,
 .dark .edit-form textarea,
 .dark .edit-form select {
-  background: #0f172a;
-  border-color: #334155;
-  color: #e2e8f0;
+  background: var(--ss-surface);
+  border-color: var(--ss-border);
+  color: var(--ss-text);
 }
 
 /* ================= FORM ACTIONS ================= */

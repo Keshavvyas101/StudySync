@@ -107,25 +107,19 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-3 relative">
+    <div className="relative p-3">
       {/* ================= Emoji Picker ================= */}
       {showEmojiPicker && (
         <div
           ref={pickerRef}
-          className="absolute bottom-14 left-4 z-50
-            w-64 max-h-52 overflow-y-auto
-            bg-white dark:bg-slate-800
-            border border-slate-200 dark:border-slate-700
-            rounded-xl shadow-2xl p-2"
+          className="emoji-picker-surface absolute bottom-16 left-4 z-50 max-h-52 w-64 overflow-y-auto rounded-2xl p-2"
         >
           <div className="grid grid-cols-8 gap-1">
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 onClick={() => insertEmoji(emoji)}
-                className="text-lg rounded-lg
-                  hover:bg-slate-100 dark:hover:bg-slate-700
-                  transition active:scale-95"
+                className="emoji-picker-button"
               >
                 {emoji}
               </button>
@@ -136,19 +130,13 @@ const MessageInput = () => {
 
       {/* ================= Input Box ================= */}
       <div
-        className="flex items-end gap-2 p-2 rounded-xl
-        bg-slate-50 dark:bg-slate-800
-        border border-slate-200 dark:border-slate-700
-        focus-within:ring-2 focus-within:ring-indigo-500
-        transition-all"
+        className="message-input-shell flex items-end gap-2 rounded-2xl p-2.5"
       >
         {/* Emoji Toggle */}
         <button
           type="button"
           onClick={() => setShowEmojiPicker((v) => !v)}
-          className="flex-shrink-0 w-8 h-8 flex items-center justify-center
-            rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700
-            transition"
+          className="chat-composer-icon-button"
           title="Add emoji"
         >
           😊
@@ -177,12 +165,11 @@ const MessageInput = () => {
           type="button"
           onClick={handleSubmit}
           disabled={!text.trim()}
-          className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg
-            transition-all active:scale-95
+          className={`chat-send-button
             ${
               text.trim()
-                ? "bg-gradient-to-br from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-md"
-                : "bg-slate-300 dark:bg-slate-700 cursor-not-allowed"
+                ? "chat-send-button-ready"
+                : "chat-send-button-disabled cursor-not-allowed"
             }`}
         >
           <svg
@@ -204,7 +191,7 @@ const MessageInput = () => {
       </div>
 
       {/* Hint */}
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 px-2">
+      <p className="mt-1.5 px-2 text-[10px] text-slate-400 dark:text-slate-500">
         Press Enter to send, Shift + Enter for new line
       </p>
     </div>

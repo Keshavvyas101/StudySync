@@ -31,7 +31,8 @@ import {
   COPILOT_FALLBACK_MESSAGE,
   resolveCopilotIntent,
 } from "../services/ai/intentResolver.js";
-import { inferResponseStyle, routeQuery, ROUTES } from "../services/ai/queryRouter.js";
+import { resolveJarvisIntent } from "../services/ai/llmIntentParser.js";
+import { inferResponseStyle, ROUTES } from "../services/ai/queryRouter.js";
 import { ensureWorkspaceAccess } from "../services/ai/workspaceAccess.js";
 
 const TASK_QUERY_INTENTS = new Set([
@@ -245,6 +246,53 @@ const getSourceOfTruth = (route) => {
   }
 };
 
+const buildCandidateActionQuery = (routerResult) => {
+  const action = routerResult.candidateAction?.toString().toLowerCase() || "";
+  const subIntent = routerResult.subIntent?.toString().toLowerCase() || "";
+  const target = routerResult.candidateTarget || {};
+  const taskTitle = target.taskTitle?.toString().trim();
+  const memberName = target.memberName?.toString().trim();
+  const datePhrase = target.datePhrase?.toString().trim();
+
+  if (
+    (subIntent.includes("assign") ||
+      action.includes("assign") ||
+      action.includes("delegate") ||
+      action.includes("handle")) &&
+    taskTitle &&
+    memberName
+  ) {
+    return `Assign ${taskTitle} to ${memberName}`;
+  }
+  if (
+    (subIntent.includes("subtask") ||
+      subIntent.includes("split") ||
+      action.includes("subtask") ||
+      action.includes("split") ||
+      action.includes("break")) &&
+    taskTitle
+  ) {
+    return `Split ${taskTitle} into subtasks`;
+  }
+  if ((subIntent.includes("reschedule") || action.includes("reschedule") || action.includes("move")) && taskTitle && datePhrase) {
+    return `Move ${taskTitle} to ${datePhrase}`;
+  }
+  if ((subIntent.includes("archive") || action.includes("archive") || action.includes("hide")) && taskTitle) {
+    return `Archive ${taskTitle}`;
+  }
+  if ((subIntent.includes("complete") || action.includes("complete") || action.includes("finish")) && taskTitle) {
+    return `Complete ${taskTitle}`;
+  }
+  if ((subIntent.includes("start_focus") || action.includes("focus")) && taskTitle) {
+    return `Start focus on ${taskTitle}`;
+  }
+  if ((subIntent.includes("create") || action.includes("create")) && taskTitle) {
+    return `Create task ${taskTitle}`;
+  }
+
+  return null;
+};
+
 const saveResponseAudit = async ({
   userId,
   workspaceId,
@@ -403,7 +451,12 @@ export const copilot = async (req, res) => {
   try {
     const { roomId, mode, query } = req.body;
     const routerResult = query?.trim()
-      ? routeQuery(query)
+      ? await resolveJarvisIntent({
+          query,
+          userId: req.user._id,
+          roomId,
+          now: req.body.currentDate ? new Date(req.body.currentDate) : new Date(),
+        })
       : {
           route: ROUTES.STUDYSYNC_INTENT,
           confidence: mode ? 1 : 0,
@@ -412,11 +465,12 @@ export const copilot = async (req, res) => {
           normalizedQuery: "",
           reasoning: "A deterministic Copilot chip or mode was provided.",
           mode,
+          llmUsed: false,
+          fallbackUsed: false,
         };
-    const responseStyle = inferResponseStyle(
-      routerResult.originalQuery || mode || "",
-      routerResult.route
-    );
+    const responseStyle =
+      routerResult.responseStyle ||
+      inferResponseStyle(routerResult.originalQuery || mode || "", routerResult.route);
 
     if (routerResult.route === ROUTES.ACTION_REQUEST) {
       const room = await ensureWorkspaceAccess(roomId, req.user._id);
@@ -430,7 +484,15 @@ export const copilot = async (req, res) => {
           timezone: req.body.timezone,
         });
       } catch (error) {
-        if (error.status !== 400) throw error;
+        const candidateQuery = buildCandidateActionQuery(routerResult);
+        if (error.status !== 400 || !candidateQuery) throw error;
+        draft = await createActionDraftFromQuery({
+          userId: req.user._id,
+          workspaceId: room._id,
+          query: candidateQuery,
+          currentDate: req.body.currentDate,
+          timezone: req.body.timezone,
+        });
       }
       const insight = buildActionBoundaryReply({
         query: routerResult.originalQuery,
@@ -463,6 +525,7 @@ export const copilot = async (req, res) => {
               routerResult,
               responseStyle,
               sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+              llmUsed: Boolean(routerResult.llmUsed),
               draftAction: execution.draftAction,
             });
 
@@ -473,7 +536,7 @@ export const copilot = async (req, res) => {
               router: routerResult,
               responseStyle,
               sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-              llmUsed: false,
+              llmUsed: Boolean(routerResult.llmUsed),
               studySyncDataUsed: false,
               trustBypass: true,
               draftAction: execution.draftAction,
@@ -496,6 +559,7 @@ export const copilot = async (req, res) => {
         routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: Boolean(routerResult.llmUsed),
         draftAction: draft ? toClientDraft(draft) : null,
       });
 
@@ -506,7 +570,7 @@ export const copilot = async (req, res) => {
         router: routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-        llmUsed: false,
+        llmUsed: Boolean(routerResult.llmUsed),
         studySyncDataUsed: false,
         draftAction: draft ? toClientDraft(draft) : null,
         insight,
@@ -520,6 +584,8 @@ export const copilot = async (req, res) => {
         route: routerResult.route,
         responseStyle,
         routerConfidence: routerResult.confidence,
+        jarvisIntent: routerResult.jarvisIntent,
+        query: routerResult.originalQuery,
       });
       const reply = await generateGeneralReasoningReply({
         query: routerResult.originalQuery,
@@ -531,11 +597,14 @@ export const copilot = async (req, res) => {
         recommendation: reply.answer,
         why: reply.bullets,
         caveat: reply.caveat,
+        intent: reply.intent || routerResult.jarvisIntent || null,
+        coachingSuggestions: reply.coachingSuggestions || [],
+        suggestedActionDraft: reply.suggestedActionDraft || null,
         audit: {
           route: routerResult.route,
           responseStyle,
           sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-          llmUsed: reply.llmUsed,
+          llmUsed: Boolean(reply.llmUsed || routerResult.llmUsed),
           studySyncDataUsed: false,
           generatedAt: new Date().toISOString(),
         },
@@ -546,6 +615,7 @@ export const copilot = async (req, res) => {
         workspaceId: context.workspace.id,
         route: routerResult.route,
         responseStyle,
+        query: routerResult.originalQuery,
       });
       await saveResponseAudit({
         userId: req.user._id,
@@ -553,7 +623,7 @@ export const copilot = async (req, res) => {
         routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-        llmUsed: reply.llmUsed,
+        llmUsed: Boolean(reply.llmUsed || routerResult.llmUsed),
         studySyncDataUsed: false,
       });
 
@@ -564,7 +634,7 @@ export const copilot = async (req, res) => {
         router: routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-        llmUsed: reply.llmUsed,
+        llmUsed: Boolean(reply.llmUsed || routerResult.llmUsed),
         studySyncDataUsed: false,
         context: {
           workspace: context.workspace,
@@ -583,6 +653,7 @@ export const copilot = async (req, res) => {
         routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: Boolean(routerResult.llmUsed),
       });
 
       return res.status(200).json({
@@ -594,6 +665,7 @@ export const copilot = async (req, res) => {
         router: routerResult,
         responseStyle,
         sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
+        llmUsed: Boolean(routerResult.llmUsed),
         resolvedMode: null,
         resolverConfidence: routerResult.confidence,
         matchedPattern: routerResult.matchedPattern,
@@ -635,7 +707,19 @@ export const copilot = async (req, res) => {
       userId: req.user._id,
       roomId,
     });
-    const insight = generateMockInsight({ mode: resolvedMode, context });
+    const insight = generateMockInsight({
+      mode: resolvedMode,
+      context,
+      query: resolution.originalQuery,
+    });
+
+    await maybeUpdateConversationMemory({
+      userId: req.user._id,
+      workspaceId: context.workspace.id,
+      route: routerResult.route,
+      responseStyle,
+      query: resolution.originalQuery,
+    });
 
     await saveResponseAudit({
       userId: req.user._id,
@@ -643,7 +727,7 @@ export const copilot = async (req, res) => {
       routerResult,
       responseStyle,
       sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-      llmUsed: false,
+      llmUsed: Boolean(routerResult.llmUsed),
       studySyncDataUsed: true,
       resolvedMode,
     });
@@ -655,7 +739,7 @@ export const copilot = async (req, res) => {
       router: routerResult,
       responseStyle,
       sourceOfTruthUsed: getSourceOfTruth(routerResult.route),
-      llmUsed: false,
+      llmUsed: Boolean(routerResult.llmUsed),
       studySyncDataUsed: true,
       resolvedMode,
       resolverConfidence: resolution.confidence,

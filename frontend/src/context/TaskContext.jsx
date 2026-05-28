@@ -1,4 +1,9 @@
-import { createContext, useContext, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
 import {
   fetchTasksApi,
   createTaskApi,
@@ -10,6 +15,7 @@ import {
   updateSubtaskApi,
   deleteSubtaskApi,
 } from "../services/taskService";
+import socket from "../services/socket";
 
 const TaskContext = createContext();
 const PAGE_SIZE = 10;
@@ -19,6 +25,27 @@ export const TaskProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+
+  /* ======================
+     SOCKET TASK SYNC
+  ====================== */
+  useEffect(() => {
+    const handleTaskCreated = (task) => {
+      replaceTask(task);
+    };
+
+    const handleTaskUpdated = (task) => {
+      replaceTask(task);
+    };
+
+    socket.on("task-created", handleTaskCreated);
+    socket.on("task-updated", handleTaskUpdated);
+
+    return () => {
+      socket.off("task-created", handleTaskCreated);
+      socket.off("task-updated", handleTaskUpdated);
+    };
+  }, []);
 
   /* ======================
      FETCH TASKS
@@ -101,17 +128,26 @@ export const TaskProvider = ({ children }) => {
 
   const replaceTask = (task) => {
     if (!task?._id) return;
+
     setTasks((prev) => {
-      const exists = prev.some((current) => current._id === task._id);
+      const exists = prev.some(
+        (current) => current._id === task._id
+      );
+
       if (!exists) return [task, ...prev];
-      return prev.map((current) => (current._id === task._id ? task : current));
+
+      return prev.map((current) =>
+        current._id === task._id ? task : current
+      );
     });
   };
 
   const deleteTask = async (taskId) => {
     try {
       await deleteTaskApi(taskId);
-      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      setTasks((prev) =>
+        prev.filter((t) => t._id !== taskId)
+      );
     } catch (error) {
       console.error("Error deleting task:", error);
       throw error;
@@ -125,7 +161,10 @@ export const TaskProvider = ({ children }) => {
         t._id === taskId
           ? {
               ...t,
-              status: t.status === "completed" ? "todo" : "completed",
+              status:
+                t.status === "completed"
+                  ? "todo"
+                  : "completed",
             }
           : t
       )
@@ -133,25 +172,34 @@ export const TaskProvider = ({ children }) => {
 
     try {
       const updated = await toggleTaskStatusApi(taskId);
+
       if (updated?._id) {
         setTasks((prev) =>
-          prev.map((t) => (t._id === updated._id ? updated : t))
+          prev.map((t) =>
+            t._id === updated._id ? updated : t
+          )
         );
       }
+
       return updated;
     } catch (error) {
       console.error("Error toggling task status:", error);
+
       // Revert on error
       setTasks((prev) =>
         prev.map((t) =>
           t._id === taskId
             ? {
                 ...t,
-                status: t.status === "completed" ? "todo" : "completed",
+                status:
+                  t.status === "completed"
+                    ? "todo"
+                    : "completed",
               }
             : t
         )
       );
+
       throw error;
     }
   };
@@ -175,7 +223,10 @@ export const TaskProvider = ({ children }) => {
 
   const toggleSubtask = async (taskId, subtaskId) => {
     try {
-      const updated = await toggleSubtaskApi(taskId, subtaskId);
+      const updated = await toggleSubtaskApi(
+        taskId,
+        subtaskId
+      );
       setTasks((prev) =>
         prev.map((t) => (t._id === updated._id ? updated : t))
       );
@@ -186,9 +237,17 @@ export const TaskProvider = ({ children }) => {
     }
   };
 
-  const updateSubtask = async (taskId, subtaskId, payload) => {
+  const updateSubtask = async (
+    taskId,
+    subtaskId,
+    payload
+  ) => {
     try {
-      const updated = await updateSubtaskApi(taskId, subtaskId, payload);
+      const updated = await updateSubtaskApi(
+        taskId,
+        subtaskId,
+        payload
+      );
       setTasks((prev) =>
         prev.map((t) => (t._id === updated._id ? updated : t))
       );
@@ -201,7 +260,10 @@ export const TaskProvider = ({ children }) => {
 
   const deleteSubtask = async (taskId, subtaskId) => {
     try {
-      const updated = await deleteSubtaskApi(taskId, subtaskId);
+      const updated = await deleteSubtaskApi(
+        taskId,
+        subtaskId
+      );
       setTasks((prev) =>
         prev.map((t) => (t._id === updated._id ? updated : t))
       );
@@ -218,14 +280,20 @@ export const TaskProvider = ({ children }) => {
 
   const getTaskProgress = (task) => {
     if (!task) return 0;
-    
+
     const subtasks = task.subtasks || [];
+
     if (subtasks.length === 0) {
       return task.status === "completed" ? 100 : 0;
     }
 
-    const done = subtasks.filter((s) => s.isCompleted).length;
-    return Math.round((done / subtasks.length) * 100);
+    const done = subtasks.filter(
+      (s) => s.isCompleted
+    ).length;
+
+    return Math.round(
+      (done / subtasks.length) * 100
+    );
   };
 
   return (
@@ -259,8 +327,12 @@ export const TaskProvider = ({ children }) => {
 
 export const useTasks = () => {
   const ctx = useContext(TaskContext);
+
   if (!ctx) {
-    throw new Error("useTasks must be used inside TaskProvider");
+    throw new Error(
+      "useTasks must be used inside TaskProvider"
+    );
   }
+
   return ctx;
 };

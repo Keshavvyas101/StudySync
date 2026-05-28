@@ -209,7 +209,8 @@ export const classifyIntent = async (prompt) => {
   const result = await callGemini(
     [
       "Classify this StudySync Copilot prompt.",
-      "StudySync Copilot only handles task creation, task querying, task planning, subtasks, assignment, recurring study habits, and analytics insights.",
+      "StudySync Copilot handles student productivity: study planning, task creation, reminders, task querying, subtasks, assignment, recurring study habits, and analytics insights.",
+      "Natural student task language such as 'buy milk tomorrow', 'add shopping reminder', or 'revise OS tomorrow' is CREATE_TASK.",
       "Casual chat, jokes, greetings, and general questions must be UNKNOWN.",
       'Examples of UNKNOWN: "hello bro", "how are you", "tell joke".',
       `Allowed intents: ${ALLOWED_INTENTS.join(", ")}.`,
@@ -228,14 +229,24 @@ export const extractCreateTask = (prompt, context = {}) =>
   callGemini(
     [
       buildContext(context),
-      "Extract one StudySync task from the prompt.",
-      "Use ISO 8601 for deadline when a date or time is present. Use null when no deadline is present.",
-      "Keep title short and actionable. Description can be empty.",
+      "Extract one task from the user's prompt.",
+
+      "IMPORTANT RULES:",
+      "1. Preserve the user's original intent.",
+      "2. DO NOT invent verbs like Revise, Study, Practice, Complete unless user explicitly said them.",
+      "3. If user says 'shopping', title should be 'Shopping' NOT 'Revise shopping'.",
+      "4. If user says 'buy milk', title should be 'Buy milk'.",
+      "5. Remove scheduling words like today/tomorrow from the title when they are represented as the deadline.",
+      "6. Use the user's natural wording, only clean grammar/capitalization.",
+      "7. Keep title concise.",
+      "8. Description can be empty.",
+      "9. Use ISO 8601 for deadline when date/time exists.",
+      "10. Use null when no deadline exists.",
+
       `Prompt: ${prompt}`,
     ].join("\n"),
     createTaskSchema
   );
-
 export const extractCreateSubtasks = (prompt) =>
   callGemini(
     [
@@ -264,4 +275,3 @@ export const extractRecurringTask = (prompt) =>
     ].join("\n"),
     recurringTaskSchema
   );
-

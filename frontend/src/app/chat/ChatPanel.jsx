@@ -16,15 +16,12 @@ const ChatPanel = () => {
 
   if (!activeRoom) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-6 
-        bg-gradient-to-br from-slate-50 via-white to-slate-100 
-        dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+      <div className="chat-empty-state flex h-full flex-col items-center justify-center gap-6">
         
         {/* Icon */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
-          <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 
-            rounded-3xl flex items-center justify-center shadow-2xl">
+          <div className="absolute inset-0 animate-pulse rounded-full bg-indigo-500 blur-2xl opacity-10"></div>
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-600 shadow-2xl shadow-indigo-500/20">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -46,16 +43,14 @@ const ChatPanel = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
+    <div className="chat-panel flex h-full flex-col">
       
       {/* =================== SIMPLE HEADER =================== */}
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 
-        bg-white dark:bg-slate-900 flex-shrink-0">
+      <div className="chat-panel-header flex-shrink-0 px-4 py-3">
         
         <div className="flex items-center gap-3">
           {/* Room Icon */}
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 
-            rounded-lg flex items-center justify-center text-white font-bold shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 font-bold text-white shadow-lg shadow-indigo-500/20">
             #
           </div>
 
@@ -83,7 +78,7 @@ const ChatPanel = () => {
       />
 
       {/* =================== INPUT =================== */}
-      <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800">
+      <div className="chat-input-region flex-shrink-0">
         <MessageInput />
       </div>
     </div>

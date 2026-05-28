@@ -4,19 +4,19 @@ let ioRef;
 
 /* ===============================
    INIT SOCKET
-   =============================== */
+=============================== */
 export const initNotificationSocket = (io) => {
   ioRef = io;
 };
 
 /* ===============================
    CONFIG
-   =============================== */
+=============================== */
 
 const THROTTLED_NOTIFICATION_TYPES = {
-  task_updated: 60 * 1000,       // 1 minute
-  subtask_completed: 30 * 1000,  // 30 seconds
-  due_soon: 6 * 60 * 60 * 1000,  // 6 hours
+  task_updated: 60 * 1000,
+  subtask_completed: 30 * 1000,
+  due_soon: 6 * 60 * 60 * 1000,
 };
 
 const SINGLE_TASK_NOTIFICATIONS = new Set([
@@ -26,8 +26,7 @@ const SINGLE_TASK_NOTIFICATIONS = new Set([
 
 /* ===============================
    MESSAGE GENERATOR
-   =============================== */
-
+=============================== */
 const buildMessage = ({ type, meta }) => {
   const title = meta?.taskTitle || "a task";
 
@@ -39,6 +38,9 @@ const buildMessage = ({ type, meta }) => {
       return `New task created: "${title}"`;
 
     case "task_updated":
+      if (meta?.deadlineChanged) {
+        return `Deadline updated for "${title}"`;
+      }
       return `Task updated: "${title}"`;
 
     case "task_completed":
@@ -47,11 +49,7 @@ const buildMessage = ({ type, meta }) => {
     case "due_soon":
       return `"${title}" is due soon`;
 
-    case "member_joined":
-      return `A new member joined your room`;
-
-    case "member_left":
-      return `A member left your room`;
+    
 
     default:
       return "You have a new notification";
@@ -60,17 +58,18 @@ const buildMessage = ({ type, meta }) => {
 
 /* ===============================
    CREATE NOTIFICATION
-   =============================== */
+=============================== */
 export const createNotification = async (data) => {
   /**
-   * Expected shape now:
+   * Expected shape:
    * {
    *   user: ObjectId,
    *   actor?: ObjectId,
    *   type: String,
    *   room?: ObjectId,
    *   task?: ObjectId,
-   *   meta?: {}
+   *   meta?: {},
+   *   message?: String
    * }
    */
 
@@ -81,7 +80,7 @@ export const createNotification = async (data) => {
 
   /* ===============================
      DUPLICATE & THROTTLE CONTROL
-     =============================== */
+  =============================== */
   if (data.task) {
     // Hard block duplicates
     if (SINGLE_TASK_NOTIFICATIONS.has(data.type)) {
@@ -89,7 +88,9 @@ export const createNotification = async (data) => {
         user: data.user,
         task: data.task,
         type: data.type,
-        createdAt: { $gte: new Date(Date.now() - 60 * 1000) },
+        createdAt: {
+          $gte: new Date(Date.now() - 60 * 1000),
+        },
       });
 
       if (exists) return exists;
@@ -103,7 +104,9 @@ export const createNotification = async (data) => {
         user: data.user,
         task: data.task,
         type: data.type,
-        createdAt: { $gte: new Date(Date.now() - windowMs) },
+        createdAt: {
+          $gte: new Date(Date.now() - windowMs),
+        },
       });
 
       if (recent) return recent;
@@ -111,16 +114,25 @@ export const createNotification = async (data) => {
   }
 
   /* ===============================
-     BUILD MESSAGE
-     =============================== */
-  const message = buildMessage({
-    type: data.type,
-    meta: data.meta,
-  });
+     FINAL MESSAGE
+  =============================== */
+  let message;
+
+  if (
+    typeof data.message === "string" &&
+    data.message.trim()
+  ) {
+    message = data.message.trim();
+  } else {
+    message = buildMessage({
+      type: data.type,
+      meta: data.meta,
+    });
+  }
 
   /* ===============================
      CREATE NOTIFICATION
-     =============================== */
+  =============================== */
   const notification = await Notification.create({
     user: data.user,
     type: data.type,
@@ -133,7 +145,7 @@ export const createNotification = async (data) => {
 
   /* ===============================
      REALTIME SOCKET PUSH
-     =============================== */
+  =============================== */
   if (ioRef && data.user) {
     ioRef.to(data.user.toString()).emit(
       "notification:new",

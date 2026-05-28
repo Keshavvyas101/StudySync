@@ -84,7 +84,7 @@ const TaskPill = ({ task, onFocusTask }) => {
     <button
       type="button"
       onClick={() => onFocusTask?.(task.id)}
-      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+      className="copilot-chip"
     >
       {task.title}
     </button>
@@ -177,7 +177,7 @@ const ApprovalCard = ({
   const canAlwaysAllow = SAFE_TRUST_ACTIONS.has(draft.actionType);
 
   return (
-    <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 shadow-sm dark:border-indigo-900/70 dark:bg-indigo-950/25">
+    <div className="copilot-approval-card mt-4 rounded-2xl px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
@@ -187,7 +187,7 @@ const ApprovalCard = ({
             {getDraftTitle(draft)}
           </div>
         </div>
-        <span className="rounded-full border border-indigo-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase text-indigo-600 dark:border-indigo-800 dark:bg-slate-950 dark:text-indigo-300">
+        <span className="copilot-status-pill rounded-full px-2 py-1 text-[10px] font-semibold uppercase text-indigo-600 dark:text-indigo-300">
           {draft.status}
         </span>
       </div>
@@ -207,7 +207,7 @@ const ApprovalCard = ({
       </div>
 
       {feedback && (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+        <div className="copilot-feedback mt-3 rounded-xl px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
           {feedback}
         </div>
       )}
@@ -218,7 +218,7 @@ const ApprovalCard = ({
             type="button"
             onClick={onApprove}
             disabled={busy}
-            className="flex-1 rounded-xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+            className="copilot-primary-action flex-1 disabled:opacity-50"
           >
             {busy ? "Working..." : "Allow once"}
           </button>
@@ -227,7 +227,7 @@ const ApprovalCard = ({
               type="button"
               onClick={onAlwaysAllow}
               disabled={busy}
-              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="copilot-primary-action flex-1 disabled:opacity-50"
             >
               Always allow
             </button>
@@ -236,7 +236,7 @@ const ApprovalCard = ({
             type="button"
             onClick={onDeny}
             disabled={busy}
-            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+            className="copilot-secondary-action flex-1 disabled:opacity-50"
           >
             Deny
           </button>
@@ -257,7 +257,7 @@ const InsightCard = ({ result, onFocusTask }) => {
   ].filter(isMeaningfulTask);
 
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+    <div className="copilot-card rounded-3xl p-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
         {getRouteLabel(result, insight)}
       </div>
@@ -269,7 +269,7 @@ const InsightCard = ({ result, onFocusTask }) => {
       </p>
 
       {why.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+        <div className="copilot-inset-card mt-4 rounded-2xl px-4 py-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             Why
           </div>
@@ -288,7 +288,7 @@ const InsightCard = ({ result, onFocusTask }) => {
       )}
 
       {insight?.caveat && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-5 text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
+        <div className="copilot-inset-card mt-4 rounded-2xl px-4 py-3 text-sm leading-5 text-slate-500 dark:text-slate-400">
           {insight.caveat}
         </div>
       )}
@@ -314,14 +314,14 @@ const ProactiveInsights = ({ insights }) => {
       </div>
       <div className="mt-3 space-y-2">
         {items.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+          <div className="copilot-card rounded-2xl px-4 py-3 text-sm font-medium text-slate-500 dark:text-slate-400">
             Everything looks on track.
           </div>
         ) : (
           items.map((insight) => (
             <div
               key={`${insight.type}-${insight.cooldownKey}`}
-              className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/80"
+              className="copilot-card rounded-2xl px-4 py-3"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -540,8 +540,8 @@ const CopilotHero = ({
   };
 
   return (
-    <aside className="flex h-full flex-col bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
-      <div className="border-b border-slate-200/80 bg-white/90 px-5 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90">
+    <aside className="copilot-panel flex h-full flex-col text-slate-950 dark:text-slate-50">
+      <div className="copilot-header px-5 py-4 backdrop-blur-xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h3 className="text-lg font-semibold text-slate-950 dark:text-slate-50">
@@ -554,14 +554,14 @@ const CopilotHero = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            className="copilot-icon-button"
             aria-label="Close Study Copilot"
           >
             X
           </button>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        <div className="copilot-context-bar mt-4 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           <span>
             {taskCount} active {taskCount === 1 ? "task" : "tasks"} in {activeRoom?.name}
@@ -589,7 +589,7 @@ const CopilotHero = ({
                 type="button"
                 onClick={() => runQuery(action.label)}
                 disabled={loading}
-                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 hover:shadow-md disabled:translate-y-0 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+                className="copilot-chip disabled:translate-y-0 disabled:opacity-50"
               >
                 {action.label}
               </button>
@@ -603,7 +603,7 @@ const CopilotHero = ({
               Answer
             </div>
             {loading && (
-              <div className="flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 shadow-sm dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
+              <div className="copilot-thinking-pill flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-200">
                 <LoadingDots />
                 Thinking
               </div>
@@ -611,7 +611,7 @@ const CopilotHero = ({
           </div>
 
           {!error && !result && !loading && (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-5 py-8 text-center text-sm leading-6 text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+            <div className="copilot-empty-card rounded-3xl px-5 py-8 text-center text-sm leading-6 text-slate-500 dark:text-slate-400">
               Copilot reads your tasks, deadlines, focus history, and AI memory to give deterministic study guidance.
             </div>
           )}
@@ -634,10 +634,10 @@ const CopilotHero = ({
         </div>
       </div>
 
-      <div className="border-t border-slate-200/80 bg-white/95 px-5 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+      <div className="copilot-composer-region px-5 py-4 backdrop-blur-xl">
         <form
           onSubmit={handleSubmit}
-          className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2 shadow-inner shadow-slate-200/60 transition-all duration-200 focus-within:border-indigo-300 focus-within:shadow-[0_0_0_4px_rgba(99,102,241,0.12)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20 dark:focus-within:border-indigo-500/70"
+          className="copilot-composer flex min-h-12 items-center gap-2 rounded-2xl px-2 py-2"
         >
           <input
             value={prompt}
@@ -648,7 +648,7 @@ const CopilotHero = ({
           <button
             type="submit"
             disabled={loading || !prompt.trim()}
-            className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-slate-950 px-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-indigo-200"
+            className="copilot-primary-action flex h-9 min-w-9 items-center justify-center disabled:cursor-not-allowed disabled:opacity-45"
             aria-label="Ask Study Copilot"
           >
             {loading ? (

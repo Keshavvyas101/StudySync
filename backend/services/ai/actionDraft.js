@@ -27,7 +27,7 @@ const toClientDraft = (draft) => ({
 const inferSupportedActionType = (query = "") => {
   const normalized = normalize(query);
 
-  if (/\b(assign)\b.*\b(to)\b/.test(normalized)) {
+  if (/\b(assign|delegate|give)\b.*\b(to)\b/.test(normalized) || extractNaturalAssignParts(query)) {
     return "ASSIGN_TASK";
   }
 
@@ -35,7 +35,10 @@ const inferSupportedActionType = (query = "") => {
     return "RESCHEDULE_TASK";
   }
 
-  if (/\b(break|split)\b.*\b(subtasks|subtask|steps)\b/.test(normalized)) {
+  if (
+    /\b(break|split)\b.*\b(subtasks|subtask|steps|down|up)\b/.test(normalized) ||
+    /\btoo (big|large|long|much)\b.*\b(break|split)\b/.test(normalized)
+  ) {
     return "CREATE_SUBTASKS";
   }
 
@@ -43,7 +46,10 @@ const inferSupportedActionType = (query = "") => {
     return "ARCHIVE_TASK";
   }
 
-  if (/\b(create|add|make)\b.*\b(task|todo)\b/.test(normalized)) {
+  if (
+    /\b(create|add|make)\b.*\b(task|todo|reminder)\b/.test(normalized) ||
+    isNaturalCreateTaskRequest(normalized)
+  ) {
     return "CREATE_TASK";
   }
 
@@ -62,6 +68,21 @@ const sanitizeTags = (tags) =>
   Array.isArray(tags)
     ? tags.map((tag) => tag?.toString().trim()).filter(Boolean).slice(0, 10)
     : [];
+
+const isNaturalCreateTaskRequest = (normalized = "") => {
+  const hasDateOrReminder =
+    /\b(today|tomorrow|tonight|sunday|monday|tuesday|wednesday|thursday|friday|saturday|reminder|next week|this week|in \d+ days?)\b/.test(
+      normalized
+    );
+  const startsWithTaskVerb =
+    /^(buy|get|submit|finish|complete|revise|study|read|prepare|practice|solve|review|call|email|message|meet|attend)\b/.test(
+      normalized
+    );
+  const expressesNeed =
+    /\b(i need to|need to|have to|got to)\b/.test(normalized);
+
+  return hasDateOrReminder && (startsWithTaskVerb || expressesNeed);
+};
 
 const isExplicitArchiveCommand = (normalized = "") => {
   const match = normalized.match(/^(archive|hide)\s+(.+)$/);
@@ -103,12 +124,39 @@ const isSupportedDatePhrase = (value = "") => {
 };
 
 const extractAssignParts = (query = "") => {
+  const naturalParts = extractNaturalAssignParts(query);
+  if (naturalParts) return naturalParts;
+
   const parts = splitAtRightmostWord(query, "to");
   if (!parts) return null;
   return {
-    taskText: parts.before.replace(/\b(assign)\b/gi, " "),
+    taskText: parts.before.replace(/\b(assign|delegate|give)\b/gi, " "),
     assigneeText: parts.after,
   };
+};
+
+const extractNaturalAssignParts = (query = "") => {
+  const leadingQuestion = query.match(
+    /^\s*(?:can|could|should)\s+([a-z0-9._-]+)\s+(?:handle|do|take|own|work\s+on)\s+(.+?)\s*[?.!]*$/i
+  );
+  if (leadingQuestion) {
+    return {
+      assigneeText: leadingQuestion[1],
+      taskText: leadingQuestion[2],
+    };
+  }
+
+  const statement = query.match(
+    /^\s*([a-z0-9._-]+)\s+(?:can|could|should|will)\s+(?:handle|do|take|own|work\s+on)\s+(.+?)\s*[?.!]*$/i
+  );
+  if (statement) {
+    return {
+      assigneeText: statement[1],
+      taskText: statement[2],
+    };
+  }
+
+  return null;
 };
 
 const extractRescheduleParts = (query = "") => {
@@ -161,6 +209,24 @@ const parseFallbackDeadline = ({ query, currentDate }) => {
     return deadline.toISOString();
   }
 
+  const inDaysMatch = normalized.match(/\bin\s+(\d+)\s+days?\b/);
+  if (inDaysMatch) {
+    const days = Number(inDaysMatch[1]);
+    if (Number.isFinite(days) && days >= 0) {
+      const deadline = new Date(base);
+      deadline.setDate(deadline.getDate() + days);
+      deadline.setHours(23, 59, 0, 0);
+      return deadline.toISOString();
+    }
+  }
+
+  if (normalized.includes("next week")) {
+    const deadline = new Date(base);
+    deadline.setDate(deadline.getDate() + 7);
+    deadline.setHours(23, 59, 0, 0);
+    return deadline.toISOString();
+  }
+
   const weekdayIndex = [
     "sunday",
     "monday",
@@ -182,9 +248,27 @@ const parseFallbackDeadline = ({ query, currentDate }) => {
   return null;
 };
 
-const parseFallbackTitle = (query = "") => {
-  const subject = extractCreateSubject(query);
-  return subject ? `Revise ${subject}` : "New Study Task";
+const sanitizeCreateTitle = (title, originalQuery, deadline = null) => {
+  const rawTitle = deadline
+    ? stripDateWordsFromTitle(title?.toString().trim() || "")
+    : title?.toString().trim() || "";
+  const rawNormalized = normalize(rawTitle);
+  const queryNormalized = normalize(originalQuery);
+
+  const commandLike =
+    !rawTitle ||
+    rawNormalized === queryNormalized ||
+    isOnlyCreateCommand(rawNormalized);
+
+  if (!commandLike) {
+    return toTitleCase(rawTitle);
+  }
+
+  const subject =
+    extractCreateSubject(rawTitle) ||
+    extractCreateSubject(originalQuery);
+
+  return subject || "New Task";
 };
 
 const compactTask = (task) => ({
@@ -206,41 +290,57 @@ const toTitleCase = (value = "") =>
     )
     .join(" ");
 
-const cleanSubjectWords = (query = "") =>
+const CREATE_PREFIX_PATTERN =
+  /^(i\s+want\s+to|i\s+need\s+to|i\s+have\s+to|i\s+have|there\s+is|there\s+s|got|need\s+to|have\s+to|can\s+you|could\s+you|please|pls|create|add|make|set|put)\s+/i;
+const DATE_WORD_PATTERN =
+  /\b(today|tomorrow|tonight|yesterday|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi;
+const RELATIVE_DATE_PATTERN = /\b(in\s+\d+\s+days?|next\s+week|this\s+week)\b/gi;
+
+const isOnlyCreateCommand = (normalized = "") => {
+  const withoutScaffold = normalized
+    .replace(/\b(create|add|make|set|put|task|todo|reminder|please|pls|a|an|new|the|my|me|for|on|by|at|to)\b/g, " ")
+    .replace(DATE_WORD_PATTERN, " ")
+    .replace(RELATIVE_DATE_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return withoutScaffold.length < 2;
+};
+
+const stripCreateScaffold = (query = "") =>
   query
     .replace(/\b(create|add|make|please|pls)\b/gi, " ")
+    .replace(/\b(i want to|i need to|i have to|i have|there is|there s|got|need to|have to|can you|could you)\b/gi, " ")
     .replace(/\b(a|an|new|the|my|me)\b/gi, " ")
     .replace(/\b(task|todo|reminder)\b/gi, " ")
     .replace(/\b(for me|for myself)\b/gi, " ")
-    .replace(/\b(today|tomorrow|tonight)\b/gi, " ")
-    .replace(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, " ")
+    .replace(DATE_WORD_PATTERN, " ")
+    .replace(RELATIVE_DATE_PATTERN, " ")
     .replace(/\b(for|by|on|at|before|after|next|this)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
+const stripDateWordsFromTitle = (title = "") =>
+  title
+    .replace(DATE_WORD_PATTERN, " ")
+    .replace(RELATIVE_DATE_PATTERN, " ")
+    .replace(/\b(due|by|on|at|before|after|next|this)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const extractCreateSubject = (query = "") => {
-  const cleaned = cleanSubjectWords(query);
+  const cleaned = stripCreateScaffold(query);
   if (!cleaned || normalize(cleaned).length < 2) return null;
   return toTitleCase(cleaned);
 };
 
-const sanitizeCreateTitle = (title, originalQuery) => {
-  const rawTitle = title?.toString().trim() || "";
-  const rawNormalized = normalize(rawTitle);
-  const queryNormalized = normalize(originalQuery);
-  const hasStudyIntent = /\b(revise|revision|study|practice|solve|read|prepare|review)\b/.test(
-    rawNormalized
-  );
-  const commandLike =
-    !rawTitle ||
-    rawNormalized === queryNormalized ||
-    /\b(create|add|make|task|todo|today|tomorrow)\b/.test(rawNormalized);
-
-  if (!commandLike && hasStudyIntent) return rawTitle;
-  if (!commandLike) return `Revise ${rawTitle}`;
-
-  const subject = extractCreateSubject(rawTitle) || extractCreateSubject(originalQuery);
-  return subject ? `Revise ${subject}` : "New Study Task";
+const parseFallbackTitle = (query = "") => {
+  const withoutDates = query
+    .replace(DATE_WORD_PATTERN, " ")
+    .replace(RELATIVE_DATE_PATTERN, " ");
+  const withoutPrefix = withoutDates.replace(CREATE_PREFIX_PATTERN, "");
+  const cleaned = stripCreateScaffold(withoutPrefix);
+  return cleaned || stripCreateScaffold(query) || "New Task";
 };
 
 const extractTaskReference = (query = "", actionType) => {
@@ -259,6 +359,8 @@ const extractTaskReference = (query = "", actionType) => {
         ? query
             .split(/\b(into|to)\b/i)[0]
             .replace(/\b(break|split)\b/gi, " ")
+            .replace(/\b(this|that|it)\s+(chapter|task|project|assignment)\s+is\s+too\s+(big|large|long|much)\b/gi, "$2")
+            .replace(/\b(is|feels|looks|too|big|large|long|much|down|up|subtasks|subtask|steps)\b/gi, " ")
       : actionType === "ARCHIVE_TASK"
         ? query
             .replace(/\b(archive|hide|old)\b/gi, " ")
@@ -268,7 +370,7 @@ const extractTaskReference = (query = "", actionType) => {
 
   const cleanupPattern = ["ASSIGN_TASK", "RESCHEDULE_TASK", "ARCHIVE_TASK"].includes(actionType)
     ? /\b(the|my|please|pls)\b/gi
-    : /\b(task|todo|for|on|the|my|please|pls)\b/gi;
+    : /\b(task|todo|for|on|the|my|please|pls|this|that|it)\b/gi;
 
   return normalize(withoutCommand.replace(cleanupPattern, " ").replace(/\s+/g, " "));
 };
@@ -379,11 +481,26 @@ const buildRescheduleTaskPayload = async ({ query, workspaceId, userId, actionTy
   };
 };
 
-const buildSuggestedSubtasks = (taskTitle) => [
-  `Review ${taskTitle} basics`,
-  `Practice ${taskTitle} problems`,
-  `Summarize ${taskTitle} notes`,
-];
+const isStudyTaskTitle = (taskTitle = "") =>
+  /\b(revise|revision|study|practice|solve|read|prepare|review|assignment|homework|exam|test|quiz|notes|lecture|chapter|os|dbms|dsa|math|physics|chemistry|biology|algorithm|sql|java|python|react)\b/i.test(
+    taskTitle
+  );
+
+const buildSuggestedSubtasks = (taskTitle) => {
+  if (isStudyTaskTitle(taskTitle)) {
+    return [
+      `Clarify the goal for ${taskTitle}`,
+      `Work through the main material`,
+      `Check understanding with examples or notes`,
+    ];
+  }
+
+  return [
+    `Define what done means for ${taskTitle}`,
+    `Gather anything needed`,
+    `Finish and check the result`,
+  ];
+};
 
 const buildCreateSubtasksPayload = async ({ query, workspaceId, userId, actionType }) => {
   const resolved = await findReferencedTask({ query, workspaceId, userId, actionType });
@@ -421,7 +538,7 @@ const buildCreateTaskPayload = async ({ query, workspaceId, currentDate, timezon
   }
 
   return {
-    title: sanitizeCreateTitle(parsed.title, query),
+    title: sanitizeCreateTitle(parsed.title, query, parsed.deadline),
     description: parsed.description?.trim() || "",
     deadline: parsed.deadline && parsed.deadline !== "null" ? parsed.deadline : null,
     priority: ["low", "medium", "high"].includes(parsed.priority?.toLowerCase())

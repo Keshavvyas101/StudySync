@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
+import { ChatProvider } from "./context/ChatContext";
 
 import { AuthProvider } from "./context/AuthContext";
 import { RoomProvider } from "./context/RoomContext";
@@ -29,17 +30,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <AuthProvider>
         <ThemeProvider>
          <UserProvider>
-            <RoomProvider>
-              <TaskProvider>
-                <StudySessionProvider>
-                  <NotificationProvider>
-                    <UIProvider>
-                      <App/>
-                    </UIProvider>
-                  </NotificationProvider>
-                </StudySessionProvider>
-              </TaskProvider>
-           </RoomProvider>
+           <RoomProvider>
+  <ChatProvider>
+    <TaskProvider>
+      <StudySessionProvider>
+        <NotificationProvider>
+          <UIProvider>
+            <App />
+          </UIProvider>
+        </NotificationProvider>
+      </StudySessionProvider>
+    </TaskProvider>
+  </ChatProvider>
+</RoomProvider>
          </UserProvider>
        </ThemeProvider>
     </AuthProvider>

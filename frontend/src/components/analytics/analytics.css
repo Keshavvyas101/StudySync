@@ -1,14 +1,15 @@
 .analytics {
-  padding: 28px;
+  padding: 30px;
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 34px;
+  color: var(--ss-text);
 }
 
 /* ================= BASIC TEXT ================= */
 
 .analytics-muted {
-  color: #64748b;
+  color: var(--ss-muted);
   font-size: 14px;
 }
 
@@ -17,7 +18,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--ss-muted);
 }
 
 /* ================= TITLES ================= */
@@ -25,13 +26,13 @@
 .analytics-title {
   font-size: 22px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ss-text-strong);
 }
 
 .analytics-subtitle {
   font-size: 15px;
   font-weight: 600;
-  color: #334155;
+  color: var(--ss-muted-strong);
   margin-bottom: 12px;
 }
 
@@ -40,14 +41,15 @@
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .analytics-card {
   padding: 18px;
   border-radius: 14px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid var(--ss-border);
+  background: var(--ss-surface-raised);
+  box-shadow: var(--ss-shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -55,13 +57,13 @@
 
 .analytics-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--ss-muted);
 }
 
 .analytics-value {
   font-size: 28px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ss-text-strong);
 }
 
 /* ================= WEEK GRID (REPLACES BAR CHART) ================= */
@@ -75,8 +77,9 @@
 .analytics-week-day {
   padding: 14px;
   border-radius: 12px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-border);
+  box-shadow: var(--ss-shadow-sm);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -86,12 +89,12 @@
 .analytics-week-count {
   font-size: 20px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ss-text-strong);
 }
 
 .analytics-week-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--ss-muted);
 }
 
 /* ================= ACHIEVEMENTS ================= */
@@ -99,7 +102,7 @@
 .analytics-list {
   padding-left: 18px;
   font-size: 14px;
-  color: #334155;
+  color: var(--ss-muted-strong);
 }
 
 .analytics-list li {
@@ -117,8 +120,9 @@
 .analytics-user {
   padding: 14px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid var(--ss-border);
+  background: var(--ss-surface-raised);
+  box-shadow: var(--ss-shadow-sm);
 }
 
 .analytics-user-header {
@@ -126,19 +130,19 @@
   justify-content: space-between;
   font-size: 14px;
   margin-bottom: 8px;
-  color: #334155;
+  color: var(--ss-muted-strong);
 }
 
 .analytics-bar {
   height: 6px;
-  background: #f1f5f9;
+  background: var(--ss-surface-subtle);
   border-radius: 999px;
   overflow: hidden;
 }
 
 .analytics-bar-fill {
   height: 100%;
-  background: #6366f1;
+  background: linear-gradient(90deg, var(--ss-accent), #7c3aed);
   transition: width 0.3s ease;
 }
 
@@ -154,24 +158,33 @@
   padding: 6px 14px;
   font-size: 13px;
   border-radius: 999px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: var(--ss-surface);
+  border: 1px solid var(--ss-border);
+  color: var(--ss-muted-strong);
   cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.analytics-filter:hover {
+  border-color: var(--ss-accent-border);
+  background: var(--ss-accent-soft);
+  color: var(--ss-accent);
 }
 
 .analytics-filter.active {
-  background: #6366f1;
+  background: var(--ss-accent);
   color: white;
-  border-color: #6366f1;
+  border-color: var(--ss-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ss-accent) 22%, transparent);
 }
 
 /* ================= ADVANCED TOGGLE ================= */
 
 .analytics-toggle {
   font-size: 14px;
-  color: #6366f1;
+  color: var(--ss-accent);
   cursor: pointer;
+  font-weight: 600;
 }
 
 .analytics-toggle:hover {
@@ -180,36 +193,19 @@
 
 /* ================= DARK MODE ================= */
 
-.dark .analytics-title,
-.dark .analytics-value,
-.dark .analytics-week-count {
-  color: #f1f5f9;
-}
-
-.dark .analytics-subtitle,
-.dark .analytics-user-header {
-  color: #cbd5e1;
-}
-
-.dark .analytics-muted,
-.dark .analytics-label,
-.dark .analytics-week-label {
-  color: #94a3b8;
-}
-
 .dark .analytics-card,
 .dark .analytics-user,
 .dark .analytics-week-day {
-  background: #0f172a;
-  border-color: #1f2937;
+  background: var(--ss-surface-raised);
+  border-color: var(--ss-border);
 }
 
 .dark .analytics-bar {
-  background: #1f2937;
+  background: var(--ss-surface-subtle);
 }
 
 .dark .analytics-filter {
-  background: #1f2937;
-  border-color: #334155;
-  color: #cbd5e1;
+  background: var(--ss-surface);
+  border-color: var(--ss-border);
+  color: var(--ss-muted-strong);
 }

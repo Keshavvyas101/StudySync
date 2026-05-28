@@ -57,7 +57,9 @@ export const getTaskRecipients = (task, room, excludeUserId) => {
 
   if (task.createdBy) recipients.add(task.createdBy.toString());
   if (room.owner) recipients.add(room.owner.toString());
+  if (task.assignedTo) recipients.add(task.assignedTo.toString());
 
   recipients.delete(excludeUserId);
+
   return [...recipients];
 };

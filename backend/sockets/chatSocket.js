@@ -5,7 +5,6 @@ import Room from "../models/Room.js";
 import User from "../models/User.js";
 import { logActivity } from "../services/activityService.js";
 
-
 const chatSocket = (io) => {
   io.on("connection", async (socket) => {
     try {
@@ -24,7 +23,14 @@ const chatSocket = (io) => {
       ========================= */
       socket.on("join-room", async (roomId) => {
         const room = await Room.findById(roomId);
-        if (!room || !room.members.includes(user._id)) return;
+
+        if (
+          !room ||
+          !room.members.some(
+            (m) => m.toString() === user._id.toString()
+          )
+        ) return;
+
         socket.join(roomId);
       });
 
@@ -35,37 +41,52 @@ const chatSocket = (io) => {
         if (!content?.trim()) return;
 
         const room = await Room.findById(roomId);
-        if (!room || !room.members.includes(user._id)) return;
 
-       const message = await Message.create({
-  room: roomId,
-  sender: user._id,
-  content,
-});
-     
+        if (
+          !room ||
+          !room.members.some(
+            (m) => m.toString() === user._id.toString()
+          )
+        ) return;
 
-// 📘 Activity log (safe, non-blocking)
-try {
-  await logActivity(user._id, roomId, "message_sent", {
-    messageId: message._id,
-  });
-} catch (e) {
-  console.warn("Message activity logging failed:", e.message);
-}
+        const message = await Message.create({
+          room: roomId,
+          sender: user._id,
+          content,
+        });
 
-const populated = await message.populate("sender", "name avatar");
-io.to(roomId).emit("new-message", populated);
+        // 📘 Activity log
+        try {
+          await logActivity(user._id, roomId, "message_sent", {
+            messageId: message._id,
+          });
+        } catch (e) {
+          console.warn("Message activity logging failed:", e.message);
+        }
 
+        const populated = await message.populate(
+          "sender",
+          "name avatar"
+        );
+
+        /* =========================
+           CHAT MESSAGE BROADCAST
+        ========================= */
+        io.to(roomId).emit("new-message", populated);
       });
-
-      
 
       /* =========================
          MARK ROOM AS READ
       ========================= */
       socket.on("mark-read", async ({ roomId }) => {
         const room = await Room.findById(roomId);
-        if (!room || !room.members.includes(user._id)) return;
+
+        if (
+          !room ||
+          !room.members.some(
+            (m) => m.toString() === user._id.toString()
+          )
+        ) return;
 
         const result = await Message.updateMany(
           {
@@ -88,42 +109,50 @@ io.to(roomId).emit("new-message", populated);
       });
 
       /* =========================
-         🆕 ADD / REMOVE REACTION
+         🆕 REACTIONS
       ========================= */
-     /* =========================
-   🆕 REACTIONS
-========================= */
-socket.on("toggle-reaction", async ({ messageId, emoji }) => {
-  if (!messageId || !emoji) return;
+      socket.on("toggle-reaction", async ({ messageId, emoji }) => {
+        if (!messageId || !emoji) return;
 
-  const message = await Message.findById(messageId);
-  if (!message) return;
+        const message = await Message.findById(messageId);
+        if (!message) return;
 
-  const room = await Room.findById(message.room);
-  if (!room || !room.members.includes(user._id)) return;
+        const room = await Room.findById(message.room);
 
-  message.reactions = message.reactions || [];
+        if (
+          !room ||
+          !room.members.some(
+            (m) => m.toString() === user._id.toString()
+          )
+        ) return;
 
-  const index = message.reactions.findIndex(
-    r =>
-      r.emoji === emoji &&
-      r.user.toString() === user._id.toString()
-  );
+        message.reactions = message.reactions || [];
 
-  if (index !== -1) {
-    message.reactions.splice(index, 1);
-  } else {
-    message.reactions.push({ emoji, user: user._id });
-  }
+        const index = message.reactions.findIndex(
+          (r) =>
+            r.emoji === emoji &&
+            r.user.toString() === user._id.toString()
+        );
 
-  await message.save();
+        if (index !== -1) {
+          message.reactions.splice(index, 1);
+        } else {
+          message.reactions.push({
+            emoji,
+            user: user._id,
+          });
+        }
 
-  io.to(message.room.toString()).emit("reaction-updated", {
-    messageId,
-    reactions: message.reactions,
-  });
-});
+        await message.save();
 
+        io.to(message.room.toString()).emit(
+          "reaction-updated",
+          {
+            messageId,
+            reactions: message.reactions,
+          }
+        );
+      });
 
       /* =========================
          TYPING

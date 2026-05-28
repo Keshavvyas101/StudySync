@@ -1,3 +1,5 @@
+import { buildJarvisReasoningPrompt } from "./jarvisSystemPrompt.js";
+
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 12000;
 
@@ -34,6 +36,20 @@ const responseSchema = {
       items: { type: "string" },
     },
     caveat: { type: "string", nullable: true },
+    intent: { type: "string", nullable: true },
+    responseStyle: { type: "string", nullable: true },
+    coachingSuggestions: {
+      type: "array",
+      items: { type: "string" },
+    },
+    suggestedActionDraft: {
+      type: "object",
+      nullable: true,
+      properties: {
+        actionType: { type: "string", nullable: true },
+        description: { type: "string", nullable: true },
+      },
+    },
   },
   required: ["title", "answer", "bullets", "caveat"],
 };
@@ -44,15 +60,7 @@ const buildRequest = ({ query, llmContext }) => ({
       role: "user",
       parts: [
         {
-          text: [
-            "You are StudySync Copilot's general reasoning layer.",
-            "Answer naturally and concisely. Use StudySync context only when it is relevant.",
-            "Do not invent tasks, deadlines, study sessions, teammates, or workspace state.",
-            "Never claim you changed data. Never ask for raw private data.",
-            "Return JSON only.",
-            `User query: ${query}`,
-            `Sanitized context: ${JSON.stringify(llmContext)}`,
-          ].join("\n"),
+          text: buildJarvisReasoningPrompt({ query, llmContext }),
         },
       ],
     },
@@ -64,17 +72,63 @@ const buildRequest = ({ query, llmContext }) => ({
   },
 });
 
+const buildFallbackReasoningReply = ({ query, llmContext, reason }) => {
+  const studyPlan = llmContext?.studyPlan || {};
+  const primaryTask = studyPlan.primaryTask;
+  const workload = studyPlan.workload;
+  const firstBlock = studyPlan.suggestedBlocks?.[0];
+  const normalized = query?.toString().toLowerCase() || "";
+  const recovery = /\b(wasted|lost|recover|behind|too much|overwhelmed|no mood)\b/.test(
+    normalized
+  );
+
+  if (primaryTask) {
+    return {
+      title: recovery ? "Recovery plan" : "Study plan",
+      answer: recovery
+        ? `Do not try to repay everything at once. Start with ${primaryTask.title}, because it is the strongest current StudySync priority, and make one visible checkpoint before switching tasks.`
+        : `Start with ${primaryTask.title}. It is the strongest current StudySync priority, so use the first block to create progress there before widening the plan.`,
+      bullets: [
+        workload?.level ? `Workload pressure is ${workload.level}.` : null,
+        ...(primaryTask.reasons || []).slice(0, 3),
+        firstBlock?.minutes
+          ? `Use a ${firstBlock.minutes}-minute ${firstBlock.label?.toLowerCase() || "focus"} block.`
+          : null,
+      ].filter(Boolean),
+      caveat: "StudySync data was not changed.",
+      intent: llmContext?.jarvisIntent || null,
+      responseStyle: llmContext?.responseStyle || null,
+      coachingSuggestions: (studyPlan.suggestedBlocks || [])
+        .slice(0, 3)
+        .map((block) => block.action)
+        .filter(Boolean),
+      suggestedActionDraft: null,
+      llmUsed: false,
+    };
+  }
+
+  return {
+    title: "General guidance",
+    answer:
+      "I can help with that, but the reasoning model is not available right now. Pick one clear study target, work for a short focused block, then review what changed.",
+    bullets: [],
+    caveat: reason,
+    intent: llmContext?.jarvisIntent || null,
+    responseStyle: llmContext?.responseStyle || null,
+    coachingSuggestions: [],
+    suggestedActionDraft: null,
+    llmUsed: false,
+  };
+};
+
 export const generateGeneralReasoningReply = async ({ query, llmContext }) => {
   const keys = getGeminiKeys();
   if (keys.length === 0) {
-    return {
-      title: "General guidance",
-      answer:
-        "I can help with that, but the reasoning model is not configured right now. For now, keep it simple: pick one clear target, work for a short focused block, then review what changed.",
-      bullets: [],
-      caveat: "StudySync task data was not changed.",
-      llmUsed: false,
-    };
+    return buildFallbackReasoningReply({
+      query,
+      llmContext,
+      reason: "The reasoning model is not configured. StudySync data was not changed.",
+    });
   }
 
   let attempts = 0;
@@ -116,6 +170,12 @@ export const generateGeneralReasoningReply = async ({ query, llmContext }) => {
         answer: parsed.answer,
         bullets: Array.isArray(parsed.bullets) ? parsed.bullets.slice(0, 5) : [],
         caveat: parsed.caveat || null,
+        intent: parsed.intent || null,
+        responseStyle: parsed.responseStyle || null,
+        coachingSuggestions: Array.isArray(parsed.coachingSuggestions)
+          ? parsed.coachingSuggestions.slice(0, 4)
+          : [],
+        suggestedActionDraft: parsed.suggestedActionDraft || null,
         llmUsed: true,
       };
     } catch (error) {
@@ -127,12 +187,9 @@ export const generateGeneralReasoningReply = async ({ query, llmContext }) => {
     }
   }
 
-  return {
-    title: "General guidance",
-    answer:
-      "I could not reach the reasoning model just now. A safe next move is to narrow the question into one topic, decide the outcome you want, and study it in a 25-minute block.",
-    bullets: [],
-    caveat: "StudySync data was not used as a source of truth for this answer.",
-    llmUsed: false,
-  };
+  return buildFallbackReasoningReply({
+    query,
+    llmContext,
+    reason: "The reasoning model could not be reached. StudySync data was not changed.",
+  });
 };

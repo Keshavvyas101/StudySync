@@ -33,9 +33,9 @@ const Login = () => {
         email: formData.email.toLowerCase(),
       });
 
-      // if (fetchMe) {
-      //   await fetchMe();
-      // }
+      if (fetchMe) {
+        await fetchMe();
+      }
 
       navigate("/app");
     } catch (err) {

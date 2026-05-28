@@ -6,7 +6,6 @@ import { createNotification } from "../services/notificationService.js";
 import { logActivity } from "../services/activityService.js";
 import { completeActiveSessionsForTask } from "../services/studySessionService.js";
 
-
 import {
   populateTask,
   canManageTask,
@@ -20,7 +19,15 @@ import {
 export const createTask = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { title, description, deadline, assignedTo, priority, recurrence, tags } = req.body;
+    const {
+      title,
+      description,
+      deadline,
+      assignedTo,
+      priority,
+      recurrence,
+      tags,
+    } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json({ message: "Task title is required" });
@@ -30,13 +37,30 @@ export const createTask = async (req, res) => {
     if (!room) return res.status(404).json({ message: "Room not found" });
 
     const userId = req.user._id.toString();
+    const ownerId = room.owner.toString();
 
     if (!room.members.some((m) => m.toString() === userId)) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    if (assignedTo && !room.members.some((m) => m.toString() === assignedTo)) {
+    if (
+      assignedTo &&
+      !room.members.some((m) => m.toString() === assignedTo)
+    ) {
       return res.status(400).json({ message: "Assigned user not in room" });
+    }
+
+    /* ===============================
+       ASSIGNMENT RULE (OPTION A)
+    =============================== */
+    if (
+      assignedTo &&
+      userId !== ownerId &&
+      assignedTo !== userId
+    ) {
+      return res.status(403).json({
+        message: "Members can only assign tasks to themselves",
+      });
     }
 
     const task = await Task.create({
@@ -50,12 +74,20 @@ export const createTask = async (req, res) => {
       recurrence: recurrence || null,
       tags: Array.isArray(tags) ? tags : [],
     });
-    // 📘 Activity log
-await logActivity(req.user._id, roomId, "task_created", {
-  taskId: task._id,
-  title: task.title,
-});
 
+    // 📘 Activity log
+    await logActivity(req.user._id, roomId, "task_created", {
+      taskId: task._id,
+      title: task.title,
+    });
+
+    // populate before emitting
+    const populated = await populateTask(task._id);
+
+    /* ===============================
+       REALTIME TASK BROADCAST
+    =============================== */
+    req.io.to(roomId).emit("task-created", populated);
 
     // 🔔 Notify assignee
     if (assignedTo && assignedTo !== userId) {
@@ -70,7 +102,6 @@ await logActivity(req.user._id, roomId, "task_created", {
     }
 
     // 🔔 Notify room owner
-    const ownerId = room.owner.toString();
     if (ownerId !== userId && ownerId !== assignedTo) {
       await createNotification({
         user: ownerId,
@@ -82,7 +113,7 @@ await logActivity(req.user._id, roomId, "task_created", {
       });
     }
 
-    res.status(201).json({ task });
+    res.status(201).json({ task: populated });
   } catch (err) {
     console.error("Create task failed:", err);
     res.status(500).json({ message: "Failed to create task" });
@@ -141,8 +172,21 @@ export const updateTask = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    /* ===============================
+       DEADLINE CHANGE DETECTION
+    =============================== */
+    const oldDeadline = task.deadline
+      ? new Date(task.deadline).toISOString()
+      : null;
+
     Object.assign(task, updates);
     await task.save();
+
+    const newDeadline = task.deadline
+      ? new Date(task.deadline).toISOString()
+      : null;
+
+    const deadlineChanged = oldDeadline !== newDeadline;
 
     if (task.status === "completed") {
       await completeActiveSessionsForTask(task._id);
@@ -157,11 +201,20 @@ export const updateTask = async (req, res) => {
         type: "task_updated",
         room: task.room,
         task: task._id,
-        meta: { taskTitle: task.title },
+        meta: {
+          taskTitle: task.title,
+          deadlineChanged,
+        },
       });
     }
 
     const populated = await populateTask(task._id);
+
+    /* ===============================
+       REALTIME TASK UPDATE
+    =============================== */
+    req.io.to(task.room.toString()).emit("task-updated", populated);
+
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Update task failed:", err);
@@ -217,13 +270,11 @@ export const toggleTaskStatus = async (req, res) => {
       await completeActiveSessionsForTask(task._id);
     }
 
-    // 🔔 Notify only on transition to completed
     if (!wasCompleted && task.status === "completed") {
-      // 📘 Activity log
-await logActivity(req.user._id, task.room, "task_completed", {
-  taskId: task._id,
-  title: task.title,
-});
+      await logActivity(req.user._id, task.room, "task_completed", {
+        taskId: task._id,
+        title: task.title,
+      });
 
       const recipients = getTaskRecipients(task, room, userId);
 
@@ -240,6 +291,9 @@ await logActivity(req.user._id, task.room, "task_completed", {
     }
 
     const populated = await populateTask(task._id);
+
+    req.io.to(task.room.toString()).emit("task-updated", populated);
+
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Toggle task error:", err);
