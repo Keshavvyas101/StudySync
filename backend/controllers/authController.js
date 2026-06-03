@@ -23,7 +23,7 @@ const getAuthCookieOptions = (req) => {
 export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    console.log("register hit",req.body());
+
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -69,7 +69,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-        console.log("login hit",req.body());
+        
 
 
     if (!email || !password) {
