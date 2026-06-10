@@ -14,6 +14,7 @@
     "axios": "^1.13.2",
     "cookie": "^1.1.1",
     "dayjs": "^1.11.19",
+    "express-rate-limit": "^8.5.2",
     "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.3",
     "react": "^19.2.0",
@@ -32,7 +33,6 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-   "vite": "^5.4.0"
+    "vite": "^5.4.0"
   }
-  
 }

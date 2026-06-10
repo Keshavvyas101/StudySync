@@ -415,85 +415,85 @@ export const updateRoomAvatar = async (req, res) => {
 };
 
 
-export const deleteMessage = async (req, res) => {
-  try {
-    const { messageId } = req.params;
-    const userId = req.user._id;
+// export const deleteMessage = async (req, res) => {
+//   try {
+//     const { messageId } = req.params;
+//     const userId = req.user._id;
 
-    const message = await Message.findById(messageId);
-    if (!message) {
-      return res.status(404).json({ message: "Message not found" });
-    }
+//     const message = await Message.findById(messageId);
+//     if (!message) {
+//       return res.status(404).json({ message: "Message not found" });
+//     }
 
-    if (message.isDeleted) {
-      return res.status(400).json({ message: "Message already deleted" });
-    }
+//     if (message.isDeleted) {
+//       return res.status(400).json({ message: "Message already deleted" });
+//     }
 
-    const room = await Room.findById(message.room);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+//     const room = await Room.findById(message.room);
+//     if (!room) {
+//       return res.status(404).json({ message: "Room not found" });
+//     }
 
-    const isSender =
-      message.sender.toString() === userId.toString();
+//     const isSender =
+//       message.sender.toString() === userId.toString();
 
-    const isOwner =
-      room.owner.toString() === userId.toString();
+//     const isOwner =
+//       room.owner.toString() === userId.toString();
 
-    if (!isSender && !isOwner) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
+//     if (!isSender && !isOwner) {
+//       return res.status(403).json({ message: "Not authorized" });
+//     }
 
-    message.isDeleted = true;
-    message.deletedAt = new Date();
-    message.content = "This message was deleted";
+//     message.isDeleted = true;
+//     message.deletedAt = new Date();
+//     message.content = "This message was deleted";
 
-    await message.save();
+//     await message.save();
 
-    return res.status(200).json({
-      message: "Message deleted",
-      deletedMessage: message,
-    });
-  } catch (err) {
-    console.error("DELETE MESSAGE ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+//     return res.status(200).json({
+//       message: "Message deleted",
+//       deletedMessage: message,
+//     });
+//   } catch (err) {
+//     console.error("DELETE MESSAGE ERROR:", err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
 
-export const editMessage = async (req, res) => {
-  try {
-    const { messageId } = req.params;
-    const { content } = req.body;
-    const userId = req.user._id;
+// export const editMessage = async (req, res) => {
+//   try {
+//     const { messageId } = req.params;
+//     const { content } = req.body;
+//     const userId = req.user._id;
 
-    if (!content || !content.trim()) {
-      return res.status(400).json({ message: "Content required" });
-    }
+//     if (!content || !content.trim()) {
+//       return res.status(400).json({ message: "Content required" });
+//     }
 
-    const message = await Message.findById(messageId);
-    if (!message) {
-      return res.status(404).json({ message: "Message not found" });
-    }
+//     const message = await Message.findById(messageId);
+//     if (!message) {
+//       return res.status(404).json({ message: "Message not found" });
+//     }
 
-    if (message.isDeleted) {
-      return res.status(400).json({ message: "Cannot edit deleted message" });
-    }
+//     if (message.isDeleted) {
+//       return res.status(400).json({ message: "Cannot edit deleted message" });
+//     }
 
-    if (message.sender.toString() !== userId.toString()) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
+//     if (message.sender.toString() !== userId.toString()) {
+//       return res.status(403).json({ message: "Not authorized" });
+//     }
 
-    message.content = content.trim();
-    message.editedAt = new Date();
+//     message.content = content.trim();
+//     message.editedAt = new Date();
 
-    await message.save();
+//     await message.save();
 
-    res.status(200).json({
-      message: "Message updated",
-      updatedMessage: message,
-    });
-  } catch (err) {
-    console.error("EDIT MESSAGE ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+//     res.status(200).json({
+//       message: "Message updated",
+//       updatedMessage: message,
+//     });
+//   } catch (err) {
+//     console.error("EDIT MESSAGE ERROR:", err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
