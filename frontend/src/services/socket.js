@@ -1,8 +1,7 @@
 import { io } from "socket.io-client";
+import { API_ORIGIN } from "../config/api";
 
-const SOCKET_URL = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/+$/, "");
-
-const socket = io(SOCKET_URL, {
+const socket = io(API_ORIGIN, {
   withCredentials: true,
   autoConnect: false,
 });
