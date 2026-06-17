@@ -90,14 +90,14 @@ const RoomPanel = () => {
               const isPersonal = room.isPersonal || room.type === "personal";
               const unreadCount = unreadRooms[room._id] || 0;
               const isBlinking = blinkingRooms[room._id] || false;
-              console.log(
-  "ROOM",
-  room._id,
-  "BLINK:",
-  blinkingRooms[room._id],
-  "UNREAD:",
-  unreadRooms[room._id]
-);
+//               console.log(
+//   "ROOM",
+//   room._id,
+//   "BLINK:",
+//   blinkingRooms[room._id],
+//   "UNREAD:",
+//   unreadRooms[room._id]
+// );
               return (
                 <li
                   key={room._id}
