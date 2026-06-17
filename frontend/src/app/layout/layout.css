@@ -1298,17 +1298,186 @@ select:focus-visible {
 }
 
 /* ══════════════════════════════════════════════
-   RESPONSIVE
+   MOBILE BOTTOM NAV
+══════════════════════════════════════════════ */
+.mobile-nav {
+  display: none; /* hidden on desktop */
+}
+
+/* ══════════════════════════════════════════════
+   MOBILE DRAWER OVERLAYS
+══════════════════════════════════════════════ */
+.mobile-drawer-overlay {
+  display: none; /* hidden on desktop */
+}
+
+/* ══════════════════════════════════════════════
+   TOPBAR VISIBILITY HELPERS
+══════════════════════════════════════════════ */
+.topbar-mobile-only {
+  display: none; /* hidden on desktop */
+}
+
+.topbar-desktop-only {
+  display: inline-flex;
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤768px)
 ══════════════════════════════════════════════ */
 @media (max-width: 768px) {
+
+  /* ---- 3-Column Grid → single column ---- */
   .app-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
-  .room-panel,
-  .focus-panel {
+  /* Hide the desktop sidebar and focus columns */
+  .app-col-left,
+  .app-col-right {
     display: none;
   }
+
+  /* ---- Bottom nav: show ---- */
+  .mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    height: 56px;
+    align-items: center;
+    justify-content: space-around;
+    background: var(--ss-panel);
+    border-top: 1px solid var(--ss-border);
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .dark .mobile-nav {
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .mobile-nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    color: var(--ss-muted);
+    background: none;
+    border: none;
+    font-size: 10px;
+    font-weight: 600;
+    transition: color 0.16s ease, background 0.16s ease;
+  }
+
+  .mobile-nav-tab:active {
+    background: var(--ss-surface-subtle);
+  }
+
+  .mobile-nav-tab-active {
+    color: var(--ss-accent);
+  }
+
+  .mobile-nav-label {
+    line-height: 1;
+  }
+
+  /* ---- Drawer overlays: show ---- */
+  .mobile-drawer-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(15, 23, 42, 0.35);
+    animation: mobileOverlayIn 150ms ease-out;
+  }
+
+  .dark .mobile-drawer-overlay {
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .mobile-drawer {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--ss-panel);
+    box-shadow: var(--ss-shadow-lg);
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Left drawer (rooms) */
+  .mobile-drawer-left {
+    width: 280px;
+    max-width: 85vw;
+    animation: mobileDrawerSlideLeft 200ms ease-out;
+  }
+
+  /* Right drawer (chat / focus) */
+  .mobile-drawer-right {
+    margin-left: auto;
+    width: 100%;
+    max-width: 100vw;
+    animation: mobileDrawerSlideRight 200ms ease-out;
+  }
+
+  /* ---- Topbar adjustments ---- */
+  .topbar-mobile-only {
+    display: inline-flex;
+  }
+
+  .topbar-desktop-only {
+    display: none !important;
+  }
+
+  .topbar {
+    padding: 0 12px;
+  }
+
+  /* ---- Workspace padding for bottom nav ---- */
+  .workspace {
+    padding-bottom: 60px;
+  }
+
+  /* ---- FAB adjustments ---- */
+  .workspace-new-task-fab {
+    bottom: 72px; /* above bottom nav */
+  }
+
+  .workspace-copilot-launcher {
+    bottom: 72px;
+    right: 16px;
+  }
+
+  /* ---- Notification dropdown ---- */
+  .notification-dropdown-mobile {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: 64px;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* ── Drawer animations ── */
+@keyframes mobileOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mobileDrawerSlideLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes mobileDrawerSlideRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 /* ══════════════════════════════════════════════
@@ -1323,3 +1492,4 @@ select:focus-visible {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+

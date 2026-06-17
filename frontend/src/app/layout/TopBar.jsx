@@ -12,12 +12,18 @@ import { useUI } from "../../context/UIContext";
 import GlobalFocusTimer from "./GlobalFocusTimer";
 import "./layout.css";
 
+const MenuIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+  </svg>
+);
+
 const Topbar = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { activeRoom, fetchMembers } = useRooms();
-  const { setWorkspaceMode, openChat } = useUI();
+  const { setWorkspaceMode, openChat, openMobileRooms } = useUI();
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -95,6 +101,16 @@ const Topbar = () => {
     <header className="topbar topbar-shell relative z-50 shrink-0 backdrop-blur-xl">
       {/* LEFT */}
       <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          type="button"
+          onClick={openMobileRooms}
+          className="topbar-control topbar-icon-control topbar-mobile-only"
+          aria-label="Open rooms"
+        >
+          <MenuIcon />
+        </button>
+
         <span className="topbar-brand text-lg font-semibold text-slate-950 dark:text-slate-50">
           StudySync
         </span>
@@ -130,7 +146,7 @@ const Topbar = () => {
         {/* ================= CHAT ================= */}
         <button
           onClick={openChat}
-          className="topbar-control topbar-text-control"
+          className="topbar-control topbar-text-control topbar-desktop-only"
         >
           💬 Chat
         </button>
@@ -138,7 +154,7 @@ const Topbar = () => {
         {/* ================= ANALYTICS ================= */}
         <button
           onClick={() => setWorkspaceMode("analytics")}
-          className="topbar-control topbar-text-control"
+          className="topbar-control topbar-text-control topbar-desktop-only"
         >
           📊 Analytics
         </button>

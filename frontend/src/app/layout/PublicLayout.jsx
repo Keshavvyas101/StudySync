@@ -83,7 +83,7 @@ const PublicLayout = () => {
       </header>
 
       {/* ================= PAGE CONTENT ================= */}
-      <main className="flex-1 px-6 py-20">
+      <main className="flex-1 px-4 sm:px-6 py-10 sm:py-20">
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>

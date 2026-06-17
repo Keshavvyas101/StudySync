@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 const UIContext = createContext(null);
 
 const STORAGE_KEY = "studysync-ui";
+const MOBILE_BREAKPOINT = 768;
 
 export const UIProvider = ({ children }) => {
   // -----------------------------
@@ -15,14 +16,14 @@ export const UIProvider = ({ children }) => {
         focusMode: saved?.focusMode ?? null,
         focusedTaskId: saved?.focusedTaskId ?? null,
         isFocusOpen: saved?.isFocusOpen ?? true,
-        focusSize: saved?.focusSize ?? "narrow", // 👈 NEW
+        focusSize: saved?.focusSize ?? "narrow",
       };
     } catch {
       return {
         focusMode: null,
         focusedTaskId: null,
         isFocusOpen: true,
-        focusSize: "narrow", // 👈 NEW
+        focusSize: "narrow",
       };
     }
   };
@@ -32,10 +33,26 @@ export const UIProvider = ({ children }) => {
   const [focusMode, setFocusMode] = useState(initial.focusMode);
   const [focusedTaskId, setFocusedTaskId] = useState(initial.focusedTaskId);
   const [isFocusOpen, setIsFocusOpen] = useState(initial.isFocusOpen);
-  const [focusSize, setFocusSize] = useState(initial.focusSize); // 👈 NEW
+  const [focusSize, setFocusSize] = useState(initial.focusSize);
 
   // Workspace (unchanged)
   const [workspaceMode, setWorkspaceMode] = useState("tasks");
+
+  // -----------------------------
+  // 📱 MOBILE DRAWER STATE
+  // null = no drawer open, "rooms" | "chat" | "focus" = which drawer is showing
+  // -----------------------------
+  const [mobilePanel, setMobilePanel] = useState(null);
+
+  const isMobile = () => window.innerWidth < MOBILE_BREAKPOINT;
+
+  const openMobileRooms = useCallback(() => {
+    setMobilePanel("rooms");
+  }, []);
+
+  const closeMobilePanel = useCallback(() => {
+    setMobilePanel(null);
+  }, []);
 
   // -----------------------------
   // Persist to localStorage whenever state changes
@@ -45,7 +62,7 @@ export const UIProvider = ({ children }) => {
       focusMode,
       focusedTaskId,
       isFocusOpen,
-      focusSize, // 👈 persist
+      focusSize,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -58,14 +75,18 @@ export const UIProvider = ({ children }) => {
   const openTask = (taskId) => {
     setFocusedTaskId(taskId);
     setFocusMode("task");
-    setFocusSize("wide");     // 👈 KEY DECISION
+    setFocusSize("wide");
     setIsFocusOpen(true);
+    // On mobile, open the focus drawer
+    if (isMobile()) setMobilePanel("focus");
   };
 
   const openChat = () => {
     setFocusMode("chat");
-    setFocusSize("narrow");   // 👈 KEY DECISION
+    setFocusSize("narrow");
     setIsFocusOpen(true);
+    // On mobile, open the chat/focus drawer
+    if (isMobile()) setMobilePanel("chat");
   };
 
   const openFocusSession = (taskId = null) => {
@@ -75,10 +96,12 @@ export const UIProvider = ({ children }) => {
     setFocusMode("focus");
     setFocusSize("narrow");
     setIsFocusOpen(true);
+    if (isMobile()) setMobilePanel("focus");
   };
 
   const closeFocus = () => {
     setIsFocusOpen(false);
+    if (isMobile()) setMobilePanel(null);
   };
 
   const toggleFocus = () => {
@@ -92,8 +115,8 @@ export const UIProvider = ({ children }) => {
         setFocusMode,
         focusedTaskId,
         isFocusOpen,
-        focusSize,       // 👈 exposed
-        setFocusSize,    // 👈 exposed
+        focusSize,
+        setFocusSize,
 
         openTask,
         openChat,
@@ -103,6 +126,12 @@ export const UIProvider = ({ children }) => {
 
         workspaceMode,
         setWorkspaceMode,
+
+        // 📱 Mobile drawer
+        mobilePanel,
+        setMobilePanel,
+        openMobileRooms,
+        closeMobilePanel,
       }}
     >
       {children}

@@ -170,7 +170,8 @@ const NotificationDropdown = ({ onClose }) => {
       ref={ref}
       className="absolute right-0 mt-3 w-80 rounded-xl shadow-xl
         bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800
-        z-50 overflow-hidden"
+        z-50 overflow-hidden
+        max-md:fixed max-md:left-2 max-md:right-2 max-md:top-16 max-md:w-auto max-md:max-w-none"
     >
       {/* HEADER */}
       <div className="flex items-center justify-between px-4 py-3

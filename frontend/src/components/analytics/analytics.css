@@ -209,3 +209,53 @@
   border-color: var(--ss-border);
   color: var(--ss-muted-strong);
 }
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+  .analytics {
+    padding: 16px;
+    gap: 22px;
+  }
+
+  .analytics-title {
+    font-size: 18px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .analytics-week-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .analytics-week-day {
+    padding: 10px 6px;
+  }
+
+  .analytics-week-count {
+    font-size: 16px;
+  }
+
+  .analytics-value {
+    font-size: 22px;
+  }
+
+  .analytics-card {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-week-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

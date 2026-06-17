@@ -2,6 +2,7 @@ import { useState } from "react";
 import api from "../../services/api";
 import { useRooms } from "../../context/RoomContext";
 import { useChat } from "../../context/ChatContext";
+import { useUI } from "../../context/UIContext";
 import Avatar from "../../components/common/Avatar";
 
 // Icons
@@ -27,6 +28,8 @@ const RoomPanel = () => {
     createRoom,
     fetchRooms,
   } = useRooms();
+
+  const { closeMobilePanel } = useUI();
 
   // SAFE chat context
   const chat = useChat() || {};
@@ -98,7 +101,7 @@ const RoomPanel = () => {
               return (
                 <li
                   key={room._id}
-                  onClick={() => setActiveRoom(room)}
+                  onClick={() => { setActiveRoom(room); closeMobilePanel(); }}
                   className={`
                     room-panel-room-item group relative flex items-center justify-between
                     px-2.5 py-2.5 rounded-2xl text-sm cursor-pointer transition-all duration-200

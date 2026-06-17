@@ -56,6 +56,7 @@ const Workspace = () => {
   const { workspaceMode, setWorkspaceMode, openChat, focusMode, isFocusOpen } = useUI();
 
   const fileInputRef = useRef(null);
+  const settingsRef = useRef(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("date");
@@ -89,6 +90,18 @@ const Workspace = () => {
     setCreateTaskError("");
     setCopilotOpen(false);
   }, [activeRoom?._id]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleCopyInviteCode = async () => {
     if (!activeRoom?.inviteCode) return;
@@ -251,10 +264,10 @@ const Workspace = () => {
         <>
           {/* ================= HEADER ================= */}
           <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl">
-            <div className="px-6 pt-6 pb-4 space-y-4">
+            <div className="px-4 sm:px-6 pt-6 pb-4 space-y-4">
 
               {/* Room title + contextual actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar
                     name={activeRoom.name}
@@ -273,7 +286,7 @@ const Workspace = () => {
                   </div>
                 </div>
 
-                <div className="relative flex items-center gap-2 self-start sm:self-auto">
+                <div className="relative flex items-center gap-2 shrink-0">
                   {!isPersonalRoom && (
                     <button
                       type="button"
@@ -287,6 +300,7 @@ const Workspace = () => {
 
                   <button
                     type="button"
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => setSettingsOpen((v) => !v)}
                     className="workspace-toolbar-button workspace-toolbar-icon"
                     aria-label="Room settings"
@@ -295,7 +309,10 @@ const Workspace = () => {
                   </button>
 
                   {settingsOpen && (
-                    <div className="workspace-menu absolute right-0 top-11 z-50 w-72 overflow-hidden rounded-2xl">
+                    <div 
+                      ref={settingsRef}
+                      className="workspace-menu absolute right-0 top-11 z-50 w-72 overflow-hidden rounded-2xl"
+                    >
                       <div className="workspace-menu-section p-4">
                         {isPersonalRoom ? (
                           <>
@@ -442,8 +459,14 @@ const Workspace = () => {
           </div>
 
           {membersOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
-              <div className="workspace-modal w-full max-w-md rounded-2xl">
+            <div 
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 px-4"
+              onClick={() => setMembersOpen(false)}
+            >
+              <div 
+                className="workspace-modal w-full max-w-md rounded-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="workspace-modal-header flex items-center justify-between px-5 py-4">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -642,49 +665,7 @@ const Workspace = () => {
             )}
           </div>
 
-          {/* ================= LEGACY CONTENT REMOVED ================= */}
-          {SHOW_LEGACY_TASK_CONTENT && (
-            <>
-         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6 pb-28">
-
-
-            {loading && (
-              <div className="text-slate-400 text-sm">Loading tasks…</div>
-            )}
-
-            {!loading && filteredTasks.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-24 text-center text-slate-400">
-                <div className="text-lg font-medium">No tasks found</div>
-                <div className="text-sm">Try changing filters or create one</div>
-              </div>
-            )}
-
-            {/* Task grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filteredTasks.map((task) => (
-                <TaskCard
-                  key={task._id}
-                  task={task}
-                  members={members}
-                  expanded={expandedTaskId === task._id}
-                  onToggle={toggleExpandedTask}
-                  onExpand={expandTask}
-                />
-              ))}
-            </div>
-
-            {hasMore && !loading && (
-              <button
-                onClick={() => loadMoreTasks(activeRoom._id)}
-                className="mt-10 w-full py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-              >
-                Load more
-              </button>
-            )}
-          </div>
-
-            </>
-          )}
+  
 
           {/* ================= FLOATING ACTION ================= */}
           {tasks.length > 0 && (
@@ -701,7 +682,7 @@ const Workspace = () => {
 
           {newTaskOpen && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4"
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 px-4"
               onClick={() => !creatingTask && setNewTaskOpen(false)}
             >
               <form
@@ -854,7 +835,7 @@ const Workspace = () => {
 
       {copilotOpen && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex justify-end bg-slate-950/35 backdrop-blur-sm"
           onClick={() => setCopilotOpen(false)}
         >
           <div

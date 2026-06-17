@@ -102,6 +102,7 @@ const FocusPanel = ({ setWidth }) => {
     focusedTaskId,
     isFocusOpen,
     toggleFocus,
+    closeMobilePanel,
   } = useUI();
 
   const { tasks } = useTasks();
@@ -190,7 +191,7 @@ const FocusPanel = ({ setWidth }) => {
           </button>
         </div>
 
-        <button onClick={toggleFocus} className="focus-close">
+        <button onClick={() => { toggleFocus(); closeMobilePanel(); }} className="focus-close">
           ✕
         </button>
       </div>
