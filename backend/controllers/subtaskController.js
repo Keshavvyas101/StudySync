@@ -22,15 +22,13 @@ export const addSubtask = async (req, res) => {
   // console.log("USER:", req.user);
 
   try {
-    const { taskId } = req.params;
     const { title, assignedTo = null, deadline = null } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json({ message: "Subtask title required" });
     }
 
-    const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    const task = req.task;
 
     task.subtasks.push({
       title: title.trim(),
@@ -43,16 +41,16 @@ export const addSubtask = async (req, res) => {
     await task.save();
 
     // 📘 Activity log
-const createdSubtask = task.subtasks[task.subtasks.length - 1];
+    const createdSubtask = task.subtasks[task.subtasks.length - 1];
 
-await logActivity(req.user._id, task.room, "subtask_created", {
-  taskId: task._id,
-  subtaskId: createdSubtask._id,
-  title: createdSubtask.title,
-});
-
+    await logActivity(req.user._id, task.room, "subtask_created", {
+      taskId: task._id,
+      subtaskId: createdSubtask._id,
+      title: createdSubtask.title,
+    });
 
     const populated = await populateTask(task._id);
+    req.io.to(task.room.toString()).emit("task-updated", populated);
     res.status(201).json({ task: populated });
   } catch (err) {
     console.error("Add subtask failed:", err);
@@ -65,12 +63,10 @@ await logActivity(req.user._id, task.room, "subtask_created", {
 ================================ */
 export const toggleSubtask = async (req, res) => {
   try {
-    const { taskId, subtaskId } = req.params;
+    const { subtaskId } = req.params;
 
-    const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const task = req.task;
+    const room = req.room;
     const userId = req.user._id.toString();
 
     const subtask = task.subtasks.id(subtaskId);
@@ -86,14 +82,13 @@ export const toggleSubtask = async (req, res) => {
     subtask.completedAt = subtask.isCompleted ? new Date() : null;
 
     // 📘 Activity log only when marking completed
-if (subtask.isCompleted) {
-  await logActivity(req.user._id, task.room, "subtask_completed", {
-    taskId: task._id,
-    subtaskId: subtask._id,
-    title: subtask.title,
-  });
-}
-
+    if (subtask.isCompleted) {
+      await logActivity(req.user._id, task.room, "subtask_completed", {
+        taskId: task._id,
+        subtaskId: subtask._id,
+        title: subtask.title,
+      });
+    }
 
     syncTaskStatusWithSubtasks(task);
 
@@ -120,6 +115,7 @@ if (subtask.isCompleted) {
     }
 
     const populated = await populateTask(task._id);
+    req.io.to(task.room.toString()).emit("task-updated", populated);
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Toggle subtask failed:", err);
@@ -132,13 +128,11 @@ if (subtask.isCompleted) {
 ================================ */
 export const updateSubtask = async (req, res) => {
   try {
-    const { taskId, subtaskId } = req.params;
+    const { subtaskId } = req.params;
     const { title, assignedTo, deadline } = req.body;
 
-    const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const task = req.task;
+    const room = req.room;
     const userId = req.user._id.toString();
 
     if (!canManageTask(task, room, userId)) {
@@ -160,6 +154,7 @@ export const updateSubtask = async (req, res) => {
     }
 
     const populated = await populateTask(task._id);
+    req.io.to(task.room.toString()).emit("task-updated", populated);
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Update subtask failed:", err);
@@ -172,12 +167,10 @@ export const updateSubtask = async (req, res) => {
 ================================ */
 export const deleteSubtask = async (req, res) => {
   try {
-    const { taskId, subtaskId } = req.params;
+    const { subtaskId } = req.params;
 
-    const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const task = req.task;
+    const room = req.room;
     const userId = req.user._id.toString();
 
     if (!canManageTask(task, room, userId)) {
@@ -197,6 +190,7 @@ export const deleteSubtask = async (req, res) => {
     }
 
     const populated = await populateTask(task._id);
+    req.io.to(task.room.toString()).emit("task-updated", populated);
     res.status(200).json({ task: populated });
   } catch (err) {
     console.error("Delete subtask failed:", err);

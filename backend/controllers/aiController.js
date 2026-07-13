@@ -230,7 +230,7 @@ const handleAiError = (res, error) => {
   }
 
   console.error("Copilot failed:", error);
-  return res.status(503).json({ message: "Copilot unavailable6" });
+  return res.status(503).json({ message: "Copilot unavailable" });
 };
 
 const getSourceOfTruth = (route) => {

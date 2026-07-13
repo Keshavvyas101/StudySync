@@ -40,6 +40,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/* ---------------- AI RATE LIMITER ---------------- */
+const aiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 15, // Limit each IP to 15 AI requests per minute
+  message: { message: "Too many AI requests from this IP, please try again after a minute" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /* ---------------- ALLOWED ORIGINS ---------------- */
 const allowedOrigins = [
   "http://localhost:5173",
@@ -95,7 +104,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiLimiter, aiRoutes);
 app.use("/api/study-sessions", studySessionRoutes);
 
 /* ---------------- HEALTH CHECK ---------------- */
@@ -106,6 +115,14 @@ app.get("/", (req, res) => {
 /* ---------------- GLOBAL ERROR HANDLER ---------------- */
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err.stack);
+  
+  // Handle invalid Mongoose ObjectId format gracefully
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      message: `Invalid ID format for path: ${err.path}`,
+    });
+  }
+
   res.status(err.status || err.statusCode || 500).json({
     message: err.message || "Something went wrong",
   });

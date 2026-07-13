@@ -117,7 +117,7 @@ const buildRequest = (prompt, schema) => ({
 const callGemini = async (prompt, schema) => {
   const keys = getGeminiKeys();
   if (keys.length === 0) {
-    const error = new Error("Copilot unavailabl5e");
+    const error = new Error("Copilot unavailable");
     error.code = "COPILOT_UNAVAILABLE";
     throw error;
   }
@@ -160,7 +160,7 @@ const callGemini = async (prompt, schema) => {
           continue;
         }
 
-        const error = new Error(body?.error?.message || "Copilot unavailable4");
+        const error = new Error(body?.error?.message || "Copilot unavailable");
         error.code = "COPILOT_UNAVAILABLE";
         throw error;
       }
@@ -179,7 +179,7 @@ const callGemini = async (prompt, schema) => {
       return parsed;
     } catch (error) {
       if (error.name === "AbortError") {
-        const timeoutError = new Error("Copilot unavailable3");
+        const timeoutError = new Error("Copilot unavailable");
         timeoutError.code = "COPILOT_UNAVAILABLE";
         throw timeoutError;
       }
@@ -187,7 +187,7 @@ const callGemini = async (prompt, schema) => {
       if (error.code === "AI_QUOTA_EXHAUSTED") throw error;
       if (error.code) throw error;
 
-      const unavailable = new Error("Copilot unavailable2");
+      const unavailable = new Error("Copilot unavailable");
       unavailable.code = "COPILOT_UNAVAILABLE";
       throw unavailable;
     } finally {

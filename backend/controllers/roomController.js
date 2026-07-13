@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Task from "../models/Task.js";
 import Notification from "../models/Notification.js";
 import { createNotification } from "../services/notificationService.js";
@@ -335,13 +336,44 @@ export const deleteRoom = async (req, res) => {
 
     const roomId = room._id;
 
-    await Promise.all([
-      Task.deleteMany({ room: roomId }),
-      Message.deleteMany({ room: roomId }),
-      Notification.deleteMany({ room: roomId }),
-    ]);
+    // Use a transaction if supported, else fallback to standard delete
+    let session = null;
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
 
-    await room.deleteOne();
+      await Task.deleteMany({ room: roomId }).session(session);
+      await Message.deleteMany({ room: roomId }).session(session);
+      await Notification.deleteMany({ room: roomId }).session(session);
+      await room.deleteOne({ session });
+
+      await session.commitTransaction();
+    } catch (txError) {
+      if (session) {
+        await session.abortTransaction();
+      }
+      // If standalone MongoDB does not support transactions, fallback to non-transactional deletion
+      const isStandaloneError = 
+        txError.message.includes("replica set") ||
+        txError.code === 20 ||
+        txError.message.includes("Transaction numbers");
+
+      if (isStandaloneError) {
+        console.warn("MongoDB Standalone detected - falling back to non-transactional deletion");
+        await Promise.all([
+          Task.deleteMany({ room: roomId }),
+          Message.deleteMany({ room: roomId }),
+          Notification.deleteMany({ room: roomId }),
+        ]);
+        await room.deleteOne();
+      } else {
+        throw txError;
+      }
+    } finally {
+      if (session) {
+        session.endSession();
+      }
+    }
 
     res.status(200).json({
       message: "Room deleted successfully",

@@ -228,17 +228,50 @@ export const TaskProvider = ({ children }) => {
   };
 
   const toggleSubtask = async (taskId, subtaskId) => {
+    let originalTasks = null;
+
+    setTasks((prev) => {
+      originalTasks = prev;
+      return prev.map((t) => {
+        if (t._id !== taskId) return t;
+
+        const updatedSubtasks = t.subtasks.map((s) => {
+          if (s._id !== subtaskId) return s;
+          const nextCompleted = !s.isCompleted;
+          return {
+            ...s,
+            isCompleted: nextCompleted,
+            completedAt: nextCompleted ? new Date().toISOString() : null,
+          };
+        });
+
+        // Sync parent task status if all subtasks are complete
+        const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((s) => s.isCompleted);
+        const nextStatus = allCompleted ? "completed" : "todo";
+        const nextCompletedAt = allCompleted ? new Date().toISOString() : null;
+
+        return {
+          ...t,
+          subtasks: updatedSubtasks,
+          status: nextStatus,
+          completedAt: nextCompletedAt,
+        };
+      });
+    });
+
     try {
-      const updated = await toggleSubtaskApi(
-        taskId,
-        subtaskId
-      );
-      setTasks((prev) =>
-        prev.map((t) => (t._id === updated._id ? updated : t))
-      );
+      const updated = await toggleSubtaskApi(taskId, subtaskId);
+      if (updated?._id) {
+        setTasks((prev) =>
+          prev.map((t) => (t._id === updated._id ? updated : t))
+        );
+      }
       return updated;
     } catch (error) {
       console.error("Error toggling subtask:", error);
+      if (originalTasks) {
+        setTasks(originalTasks);
+      }
       throw error;
     }
   };
@@ -265,17 +298,41 @@ export const TaskProvider = ({ children }) => {
   };
 
   const deleteSubtask = async (taskId, subtaskId) => {
+    let originalTasks = null;
+
+    setTasks((prev) => {
+      originalTasks = prev;
+      return prev.map((t) => {
+        if (t._id !== taskId) return t;
+        const updatedSubtasks = t.subtasks.filter((s) => s._id !== subtaskId);
+
+        // Sync parent status
+        const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((s) => s.isCompleted);
+        const nextStatus = allCompleted ? "completed" : "todo";
+        const nextCompletedAt = allCompleted ? new Date().toISOString() : null;
+
+        return {
+          ...t,
+          subtasks: updatedSubtasks,
+          status: nextStatus,
+          completedAt: nextCompletedAt,
+        };
+      });
+    });
+
     try {
-      const updated = await deleteSubtaskApi(
-        taskId,
-        subtaskId
-      );
-      setTasks((prev) =>
-        prev.map((t) => (t._id === updated._id ? updated : t))
-      );
+      const updated = await deleteSubtaskApi(taskId, subtaskId);
+      if (updated?._id) {
+        setTasks((prev) =>
+          prev.map((t) => (t._id === updated._id ? updated : t))
+        );
+      }
       return updated;
     } catch (error) {
       console.error("Error deleting subtask:", error);
+      if (originalTasks) {
+        setTasks(originalTasks);
+      }
       throw error;
     }
   };
