@@ -17,7 +17,7 @@ const run = async () => {
         { "metadata.source": "test" },
       ],
     });
-    console.log(`Deleted ${result.deletedCount} test AI profiles`);
+    // console.log(`Deleted ${result.deletedCount} test AI profiles`);
   }
 
   const rebuilt = await rebuildAllAIProfiles();

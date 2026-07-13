@@ -60,6 +60,11 @@ notificationSocket(io);
 initNotificationSocket(io);
 
 /* ---------------- MIDDLEWARES ---------------- */
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 app.use(
   cors({
     origin: allowedOrigins,
