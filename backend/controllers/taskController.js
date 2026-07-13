@@ -238,6 +238,7 @@ export const deleteTask = async (req, res) => {
     }
 
     await task.deleteOne();
+    req.io.to(task.room.toString()).emit("task-deleted", task._id);
     res.status(200).json({ message: "Task deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete task" });

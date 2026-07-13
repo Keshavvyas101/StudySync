@@ -200,11 +200,38 @@ blinkTimeoutsRef.current[incomingRoomId] = setTimeout(() => {
 }, 3500);
   };
 
-  socket.on("new-message", handleNewMessage);
+    const handleUserTyping = ({ userId, name }) => {
+      if (userId === user?._id) return;
+      setTypingUsers((prev) =>
+        prev.some((u) => u._id === userId)
+          ? prev
+          : [...prev, { _id: userId, name }]
+      );
+    };
 
-  return () => {
-    socket.off("new-message", handleNewMessage);
-  };
+    const handleUserStopTyping = ({ userId }) => {
+      setTypingUsers((prev) => prev.filter((u) => u._id !== userId));
+    };
+
+    const handleReactionUpdated = ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId ? { ...m, reactions } : m
+        )
+      );
+    };
+
+    socket.on("new-message", handleNewMessage);
+    socket.on("user-typing", handleUserTyping);
+    socket.on("user-stop-typing", handleUserStopTyping);
+    socket.on("reaction-updated", handleReactionUpdated);
+
+    return () => {
+      socket.off("new-message", handleNewMessage);
+      socket.off("user-typing", handleUserTyping);
+      socket.off("user-stop-typing", handleUserStopTyping);
+      socket.off("reaction-updated", handleReactionUpdated);
+    };
 }, [user]);
 
   /* ===============================

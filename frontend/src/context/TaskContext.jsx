@@ -38,12 +38,18 @@ export const TaskProvider = ({ children }) => {
       replaceTask(task);
     };
 
+    const handleTaskDeleted = (taskId) => {
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+    };
+
     socket.on("task-created", handleTaskCreated);
     socket.on("task-updated", handleTaskUpdated);
+    socket.on("task-deleted", handleTaskDeleted);
 
     return () => {
       socket.off("task-created", handleTaskCreated);
       socket.off("task-updated", handleTaskUpdated);
+      socket.off("task-deleted", handleTaskDeleted);
     };
   }, []);
 

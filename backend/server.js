@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
 import { Server } from "socket.io";
+import rateLimit from "express-rate-limit";
 
 import connectDB from "./config/db.js";
 import "./config/cloudinary.js";
@@ -29,6 +30,15 @@ const app = express();
 
 /* ---------------- TRUST PROXY (IMPORTANT FOR RENDER) ---------------- */
 app.set("trust proxy", 1);
+
+/* ---------------- AUTH RATE LIMITER ---------------- */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: { message: "Too many login/registration attempts from this IP, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /* ---------------- ALLOWED ORIGINS ---------------- */
 const allowedOrigins = [
@@ -78,7 +88,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* ---------------- API ROUTES ---------------- */
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/tasks", taskRoutes);
@@ -91,6 +101,14 @@ app.use("/api/study-sessions", studySessionRoutes);
 /* ---------------- HEALTH CHECK ---------------- */
 app.get("/", (req, res) => {
   res.send("StudySync Backend Running");
+});
+
+/* ---------------- GLOBAL ERROR HANDLER ---------------- */
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.stack);
+  res.status(err.status || err.statusCode || 500).json({
+    message: err.message || "Something went wrong",
+  });
 });
 
 /* ---------------- START SERVER ---------------- */
