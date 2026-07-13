@@ -25,7 +25,7 @@ if (savedTheme === "dark") {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  // <React.StrictMode>
+  <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
@@ -47,5 +47,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
        </ThemeProvider>
     </AuthProvider>
     </BrowserRouter>
-  // </React.StrictMode> 
+  </React.StrictMode>
 );
