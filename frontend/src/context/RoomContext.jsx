@@ -124,7 +124,7 @@ export const RoomProvider = ({ children }) => {
   /* ================= DELETE ROOM ================= */
   const deleteRoom = async (roomId) => {
     try {
-      await api.delete(`/rooms/${roomId}/delete`);
+      await api.delete(`/rooms/${roomId}`);
 
       setRooms((prevRooms) => {
         const updatedRooms = prevRooms.filter(

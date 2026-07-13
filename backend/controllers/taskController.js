@@ -33,19 +33,13 @@ export const createTask = async (req, res) => {
       return res.status(400).json({ message: "Task title is required" });
     }
 
-    const room = await Room.findById(roomId);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-
+    const { room } = req;
     const userId = req.user._id.toString();
     const ownerId = room.owner.toString();
 
-    if (!room.members.some((m) => m.toString() === userId)) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
     if (
       assignedTo &&
-      !room.members.some((m) => m.toString() === assignedTo)
+      !room.members.some((m) => m._id.toString() === assignedTo)
     ) {
       return res.status(400).json({ message: "Assigned user not in room" });
     }
@@ -162,10 +156,7 @@ export const updateTask = async (req, res) => {
     const { taskId } = req.params;
     const updates = req.body;
 
-    const task = await Task.findById(taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const { task, room } = req;
     const userId = req.user._id.toString();
 
     if (!canManageTask(task, room, userId)) {
@@ -227,10 +218,7 @@ export const updateTask = async (req, res) => {
 ================================ */
 export const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const { task, room } = req;
     const userId = req.user._id.toString();
 
     if (!canManageTask(task, room, userId)) {
@@ -250,10 +238,7 @@ export const deleteTask = async (req, res) => {
 ================================ */
 export const toggleTaskStatus = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.taskId);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    const room = await Room.findById(task.room);
+    const { task, room } = req;
     const userId = req.user._id.toString();
 
     if (!canToggleTask(task, room, userId)) {

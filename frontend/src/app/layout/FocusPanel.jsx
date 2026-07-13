@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { ChatProvider } from "../../context/ChatContext";
 import ChatPanel from "../chat/ChatPanel";
 import TaskDetailsPanel from "../../components/taskDetails/TaskDetailPanel";
 import { useUI } from "../../context/UIContext";
@@ -199,9 +198,7 @@ const FocusPanel = ({ setWidth }) => {
       {/* ============================= BODY - NO WRAPPER ============================== */}
       <div className="focus-body flex flex-col min-h-0">
         {focusMode === "chat" && (
-          <ChatProvider>
-            <ChatPanel />
-          </ChatProvider>
+          <ChatPanel />
         )}
 
         {focusMode === "task" && focusedTask && (

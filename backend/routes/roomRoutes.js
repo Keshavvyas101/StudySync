@@ -27,7 +27,7 @@ router.post("/join", protect, joinRoom);
 router.get("/my", protect, getMyRooms);
 router.get("/:roomId/messages", protect, getRoomMessages);
 router.get("/:roomId/members", protect, getRoomMembers);
-router.delete("/:roomId/delete", protect, deleteRoom);
+router.delete("/:roomId", protect, requireRoomMember, requireRoomOwner, deleteRoom);
 
 // member only
 router.post(
